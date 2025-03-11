@@ -1,7 +1,6 @@
 // pages/api/stripe/connect.js
 import Stripe from 'stripe';
-import { createServerClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -11,33 +10,39 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Create Supabase server client
-  const cookieStore = cookies();
-const supabase = createServerClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  {
-    cookies: {
-      get(name) {
-        return cookieStore.get(name)?.value;
-      },
-    },
+  // Create Supabase client using auth cookie from request
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ndiqnzxplopcbcxzondp.supabase.co',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kaXFuenhwbG9wY2JjeHpvbmRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk1NDkxODQsImV4cCI6MjA1NTEyNTE4NH0.jCnn7TFfGV1EpBHhO1ITa8PMytD7UJfADpuzrzZOgpw',
+    {
+      auth: {
+        persistSession: false,
+      }
+    }
+  );
+
+  // Get the token from cookies or Auth header
+  const token = req.cookies['supabase-auth-token'] || req.headers.authorization?.split('Bearer ')[1];
+  
+  if (token) {
+    // Set the auth token if available
+    supabase.auth.setSession({
+      access_token: token,
+      refresh_token: ''
+    });
   }
-);
 
   // Check if user is authenticated
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
   try {
     const { userId } = req.body;
 
-    if (userId !== session.user.id) {
+    if (userId !== user.id) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -58,7 +63,7 @@ const supabase = createServerClient(
     if (!stripeAccountId) {
       const account = await stripe.accounts.create({
         type: 'express',
-        email: session.user.email,
+        email: user.email,
       });
 
       stripeAccountId = account.id;
