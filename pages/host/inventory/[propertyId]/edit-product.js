@@ -3,8 +3,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Image from 'next/image';
-import Layout from '../../../../../components/layout/Layout';
-import { supabase } from '../../../../../lib/supabase';
+import Layout from '../../../../components/layout/Layout';
+import { supabase } from '../../../../lib/supabase';
 
 export default function EditProduct() {
   const [formData, setFormData] = useState({
