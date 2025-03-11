@@ -17,6 +17,32 @@ export default function SignIn() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+  
+    try {
+      console.log("Attempting sign in...");
+      const { user, error } = await signIn(email, password);
+      
+      if (error) throw error;
+      
+      if (user) {
+        console.log("Sign in successful, redirecting to dashboard...");
+        // Add a small delay before redirect to ensure auth state is set
+        setTimeout(() => {
+          router.push('/host/dashboard');
+        }, 500);
+      }
+    } catch (error) {
+      console.error('Error signing in:', error);
+      setError(error.message || 'Failed to sign in');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
 
     try {
       const { user, error } = await signIn(email, password);
