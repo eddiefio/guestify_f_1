@@ -1,8 +1,9 @@
 // pages/_app.js
+import '../styles/global.css';
 import Head from 'next/head';
 import { AuthProvider } from '../contexts/AuthContext';
 import { CartProvider } from '../contexts/CartContext';
-import '../styles/global.css';
+
 
 function MyApp({ Component, pageProps }) {
   // Use the layout defined at the page level, if available
@@ -15,6 +16,13 @@ function MyApp({ Component, pageProps }) {
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
       </Head>
+      <link 
+  rel="stylesheet" 
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" 
+  integrity="sha512-iecdLmaskl7CVpqr0aRwUbEi0FqVIMC1VLxoJrEzVjdPqp05tO4vc1+GjKVvGFBPFHG6+M1YVHVGB8zN1E2z5Q==" 
+  crossOrigin="anonymous" 
+  referrerPolicy="no-referrer" 
+/>
       <AuthProvider>
         <CartProvider>
           {getLayout(<Component {...pageProps} />)}
