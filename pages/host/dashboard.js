@@ -15,16 +15,10 @@ export default function Dashboard() {
   const router = useRouter();
 
   useEffect(() => {
-    console.log("Dashboard loaded, user state:", user ? "logged in" : "not logged in");
-    
-    if (!user) {
-      console.log("No user found in auth context");
-      return;
-    }
+    if (!user) return;
 
     async function fetchProperties() {
       try {
-        console.log("Fetching properties for user:", user.id);
         setLoading(true);
         const { data, error } = await supabase
           .from('apartments')
@@ -32,7 +26,6 @@ export default function Dashboard() {
           .eq('host_id', user.id);
 
         if (error) throw error;
-        console.log("Properties fetched:", data?.length || 0);
         setProperties(data || []);
       } catch (err) {
         console.error('Error fetching properties:', err);
@@ -49,27 +42,6 @@ export default function Dashboard() {
   const filteredProperties = properties.filter(prop => 
     prop.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  // Add this section to handle auth state issues
-  if (!user) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="bg-white p-6 rounded-md shadow-md text-center">
-          <h2 className="text-lg font-bold mb-4">Authentication Issue</h2>
-          <p className="mb-4">You need to be logged in to view this page.</p>
-          <Link href="/auth/signin">
-            <span className="inline-block bg-[#5e2bff] text-white px-4 py-2 rounded-md cursor-pointer">
-              Go to Login
-            </span>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // Rest of your dashboard code remains the same
-  // ...
-}
 
   return (
     <div>
