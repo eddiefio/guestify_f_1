@@ -2,10 +2,12 @@
 const nextConfig = {
     reactStrictMode: true,
     images: {
-      domains: ['ndiqnzxplopcbcxzondp.supabase.co'], // Add your Supabase domain
+      domains: ['ndiqnzxplopcbcxzondp.supabase.co'],
     },
-    // Default output directory that Vercel expects
-    distDir: '.next',
+    // Make sure PostCSS is properly configured for production
+    webpack: (config) => {
+      return config;
+    },
   }
   
   module.exports = nextConfig
