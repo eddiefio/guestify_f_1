@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { CountrySelect } from '../../components/CountrySelect';
+import { CountrySelect } from '../../components/layout/CountrySelect';
 
 export default function AddProperty() {
   const [formData, setFormData] = useState({

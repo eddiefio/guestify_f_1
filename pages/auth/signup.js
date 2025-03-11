@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import AuthLayout from '../../components/layout/AuthLayout';
 import { useAuth } from '../../contexts/AuthContext';
-import { CountrySelect } from '../../components/CountrySelect';
+import { CountrySelect } from '../../components/layout/CountrySelect';
 
 export default function SignUp() {
   const [name, setName] = useState('');

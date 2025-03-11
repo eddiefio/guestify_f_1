@@ -2,7 +2,7 @@
 import Head from 'next/head';
 import { AuthProvider } from '../contexts/AuthContext';
 import { CartProvider } from '../contexts/CartContext';
-import '../styles/globals.css';
+import '../styles/global.css';
 
 function MyApp({ Component, pageProps }) {
   // Use the layout defined at the page level, if available

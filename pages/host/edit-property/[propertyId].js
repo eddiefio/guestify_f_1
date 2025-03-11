@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../../../components/layout/Layout';
-import { CountrySelect } from '../../../components/CountrySelect';
+import { CountrySelect } from '../../../components/layout/CountrySelect';
 import { supabase } from '../../../lib/supabase';
 
 export default function EditProperty() {
