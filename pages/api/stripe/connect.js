@@ -1,6 +1,7 @@
 // pages/api/stripe/connect.js
 import Stripe from 'stripe';
-import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -11,7 +12,18 @@ export default async function handler(req, res) {
   }
 
   // Create Supabase server client
-  const supabase = createServerSupabaseClient({ req, res });
+  const cookieStore = cookies();
+const supabase = createServerClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  {
+    cookies: {
+      get(name) {
+        return cookieStore.get(name)?.value;
+      },
+    },
+  }
+);
 
   // Check if user is authenticated
   const {

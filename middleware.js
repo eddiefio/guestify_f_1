@@ -1,9 +1,9 @@
 // middleware.js
 import { NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 
 export async function middleware(req) {
-  // Relative URLs of protected routes
+  // Host routes that require authentication
   const hostRoutes = [
     '/host',
     '/host/dashboard',
@@ -18,7 +18,7 @@ export async function middleware(req) {
     '/host/change-password',
   ];
 
-  // Check if the current route is a protected route
+  // Check if the current route is protected
   const isProtectedRoute = hostRoutes.some(route => 
     req.nextUrl.pathname.startsWith(route)
   );
@@ -26,7 +26,7 @@ export async function middleware(req) {
   if (isProtectedRoute) {
     // Create authenticated Supabase client
     const res = NextResponse.next();
-    const supabase = createServerSupabaseClient({ req, res });
+    const supabase = createMiddlewareClient({ req, res });
     
     // Check if we have a session
     const {
