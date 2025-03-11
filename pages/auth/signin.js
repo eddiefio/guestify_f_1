@@ -17,19 +17,15 @@ export default function SignIn() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-  
+
     try {
-      console.log("Attempting sign in...");
       const { user, error } = await signIn(email, password);
       
       if (error) throw error;
       
       if (user) {
-        console.log("Sign in successful, redirecting to dashboard...");
-        // Add a small delay before redirect to ensure auth state is set
-        setTimeout(() => {
-          router.push('/host/dashboard');
-        }, 500);
+        // Redirect to dashboard on successful login
+        router.push('/host/dashboard');
       }
     } catch (error) {
       console.error('Error signing in:', error);
@@ -38,8 +34,6 @@ export default function SignIn() {
       setLoading(false);
     }
   };
-
-  
 
   return (
     <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10">
