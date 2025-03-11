@@ -39,27 +39,7 @@ export default function SignIn() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    try {
-      const { user, error } = await signIn(email, password);
-      
-      if (error) throw error;
-      
-      if (user) {
-        // Redirect to dashboard on successful login
-        router.push('/host/dashboard');
-      }
-    } catch (error) {
-      console.error('Error signing in:', error);
-      setError(error.message || 'Failed to sign in');
-    } finally {
-      setLoading(false);
-    }
-  };
+  
 
   return (
     <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10">
