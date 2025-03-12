@@ -1,3 +1,4 @@
+// pages/host/connect-stripe.js
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../components/layout/Layout';
@@ -8,10 +9,30 @@ export default function ConnectStripe() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [sessionData, setSessionData] = useState(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
-  // Ottieni i dati della sessione quando la pagina si carica
+  // Check if user already has Stripe connected
+  useEffect(() => {
+    if (!user || isRedirecting) return;
+    
+    // If profile is loaded and has stripe_account_id
+    if (profile && profile.stripe_account_id) {
+      setIsRedirecting(true);
+      console.log('User already has Stripe connected, redirecting...');
+      
+      // Check if there's a returnUrl in the query parameters
+      const { returnUrl } = router.query;
+      if (returnUrl) {
+        router.push(returnUrl);
+      } else {
+        router.push('/host/dashboard');
+      }
+    }
+  }, [profile, router, isRedirecting, user]);
+
+  // Get session data when the page loads
   useEffect(() => {
     const getSession = async () => {
       const { data, error } = await supabase.auth.getSession();
@@ -26,60 +47,81 @@ export default function ConnectStripe() {
     getSession();
   }, []);
 
-// In pages/host/connect-stripe.js, modifica handleConnect:
+  const handleConnect = async () => {
+    setLoading(true);
+    setError(null);
 
-const handleConnect = async () => {
-  setLoading(true);
-  setError(null);
-
-  try {
-    // Prima prova con l'endpoint normale
-    let response = await fetch('/api/stripe/connect', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        userId: user?.id,
-        userEmail: user?.email,
-        accessToken: sessionData?.access_token 
-      }),
-      credentials: 'include'
-    });
-
-    // Se fallisce, prova con l'endpoint diretto
-    if (!response.ok) {
-      console.log("Regular endpoint failed, trying direct connect");
-      response = await fetch('/api/stripe/direct-connect', {
+    try {
+      // Store the returnUrl in localStorage before making the API call
+      if (router.query.returnUrl) {
+        localStorage.setItem('stripe-connect-return-url', router.query.returnUrl);
+      }
+      
+      // Prima prova con l'endpoint normale
+      let response = await fetch('/api/stripe/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           userId: user?.id,
-          userEmail: user?.email
-        })
+          userEmail: user?.email,
+          accessToken: sessionData?.access_token,
+          returnUrl: router.query.returnUrl // Pass the returnUrl to the API
+        }),
+        credentials: 'include'
       });
-    }
 
-    const data = await response.json();
+      // Se fallisce, prova con l'endpoint diretto
+      if (!response.ok) {
+        console.log("Regular endpoint failed, trying direct connect");
+        response = await fetch('/api/stripe/direct-connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            userId: user?.id,
+            userEmail: user?.email,
+            returnUrl: router.query.returnUrl
+          })
+        });
+      }
 
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to connect with Stripe');
-    }
+      const data = await response.json();
 
-    // Redirect to Stripe onboarding
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      throw new Error('No redirect URL returned');
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to connect with Stripe');
+      }
+
+      // Redirect to Stripe onboarding
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No redirect URL returned');
+      }
+    } catch (error) {
+      console.error('Error connecting to Stripe:', error);
+      setError(error.message || 'An error occurred connecting to Stripe');
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Error connecting to Stripe:', error);
-    setError(error.message || 'An error occurred connecting to Stripe');
-  } finally {
-    setLoading(false);
-  }
-};
-  const handleSkip = () => {
-    router.push('/host/dashboard');
   };
+
+  const handleSkip = () => {
+    const { returnUrl } = router.query;
+    if (returnUrl) {
+      router.push(returnUrl);
+    } else {
+      router.push('/host/dashboard');
+    }
+  };
+
+  // Render loading or the connect form
+  if (isRedirecting) {
+    return (
+      <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10 text-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+        <p className="mt-4">Redirecting...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10 text-center">

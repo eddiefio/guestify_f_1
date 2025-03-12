@@ -1,4 +1,4 @@
-// pages/api/stripe/connect.js - Versione basata sui cookie
+// pages/api/stripe/connect.js - Versione aggiornata con supporto returnUrl
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
@@ -149,14 +149,25 @@ export default async function handler(req, res) {
                     (req.headers.origin || 'http://localhost:3000');
     console.log('Base URL for redirect:', baseUrl);
     
+    // Get returnUrl from request body
+    const returnUrl = req.body.returnUrl || null;
+    const encodedReturnUrl = returnUrl ? encodeURIComponent(returnUrl) : '';
+    const refreshUrl = returnUrl 
+      ? `${baseUrl}/host/connect-stripe?returnUrl=${encodedReturnUrl}`
+      : `${baseUrl}/host/connect-stripe`;
+    const stripeReturnUrl = returnUrl 
+      ? `${baseUrl}/host/stripe-callback?returnUrl=${encodedReturnUrl}`
+      : `${baseUrl}/host/stripe-callback`;
+    
+    // Create the account link with the appropriate return URL
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
-      refresh_url: `${baseUrl}/host/connect-stripe`,
-      return_url: `${baseUrl}/host/dashboard`,
+      refresh_url: refreshUrl,
+      return_url: stripeReturnUrl,
       type: 'account_onboarding',
     });
 
-    console.log('Created Stripe onboarding link');
+    console.log('Created Stripe onboarding link with returnUrl:', returnUrl || 'default');
     return res.status(200).json({ url: accountLink.url });
     
   } catch (error) {
