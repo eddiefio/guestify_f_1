@@ -8,95 +8,78 @@ export default function ConnectStripe() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [sessionData, setSessionData] = useState(null);
-  const [pageLoading, setPageLoading] = useState(true); // Per gestire il caricamento iniziale
   const router = useRouter();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
 
-  // Controlla se l'utente ha già un account Stripe
+  // Ottieni i dati della sessione quando la pagina si carica
   useEffect(() => {
-    const checkStripeAccount = async () => {
-      try {
-        setPageLoading(true);
-        
-        // Se abbiamo già le informazioni sul profilo dall'Auth Context
-        if (profile && profile.stripe_account_id) {
-          console.log('User already has Stripe account, redirecting to dashboard');
-          
-          // Se c'è un returnUrl nei parametri, usa quello
-          const returnUrl = router.query.returnUrl;
-          if (returnUrl) {
-            router.push(returnUrl);
-          } else {
-            router.push('/host/dashboard');
-          }
-          return;
-        }
-        
-        // Se non abbiamo il profilo nel context, fai un controllo diretto
-        if (user) {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('stripe_account_id')
-            .eq('id', user.id)
-            .single();
-            
-          if (!error && data && data.stripe_account_id) {
-            console.log('User already has Stripe account, redirecting to dashboard');
-            
-            // Se c'è un returnUrl nei parametri, usa quello
-            const returnUrl = router.query.returnUrl;
-            if (returnUrl) {
-              router.push(returnUrl);
-            } else {
-              router.push('/host/dashboard');
-            }
-            return;
-          }
-        }
-        
-        // Altrimenti, mostra la pagina
-        setPageLoading(false);
-      } catch (err) {
-        console.error('Error checking Stripe account:', err);
-        setPageLoading(false);
-      }
-    };
-    
-    // Ottieni i dati della sessione
     const getSession = async () => {
       const { data, error } = await supabase.auth.getSession();
       if (!error && data.session) {
         setSessionData(data.session);
+        console.log("Session loaded successfully");
+      } else {
+        console.error("Error loading session:", error);
       }
     };
     
-    checkStripeAccount();
     getSession();
-  }, [user, profile, router]);
+  }, []);
 
-  const handleConnect = async () => {
-    // Il resto della funzione rimane uguale...
-    // [Mantieni il codice esistente per handleConnect]
-  };
+// In pages/host/connect-stripe.js, modifica handleConnect:
 
-  const handleSkip = () => {
-    // Se c'è un returnUrl nei parametri, usa quello
-    const returnUrl = router.query.returnUrl;
-    if (returnUrl) {
-      router.push(returnUrl);
-    } else {
-      router.push('/host/dashboard');
+const handleConnect = async () => {
+  setLoading(true);
+  setError(null);
+
+  try {
+    // Prima prova con l'endpoint normale
+    let response = await fetch('/api/stripe/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        userId: user?.id,
+        userEmail: user?.email,
+        accessToken: sessionData?.access_token 
+      }),
+      credentials: 'include'
+    });
+
+    // Se fallisce, prova con l'endpoint diretto
+    if (!response.ok) {
+      console.log("Regular endpoint failed, trying direct connect");
+      response = await fetch('/api/stripe/direct-connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: user?.id,
+          userEmail: user?.email
+        })
+      });
     }
-  };
 
-  // Mostra un indicatore di caricamento mentre controlliamo lo stato dell'account Stripe
-  if (pageLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to connect with Stripe');
+    }
+
+    // Redirect to Stripe onboarding
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      throw new Error('No redirect URL returned');
+    }
+  } catch (error) {
+    console.error('Error connecting to Stripe:', error);
+    setError(error.message || 'An error occurred connecting to Stripe');
+  } finally {
+    setLoading(false);
   }
+};
+  const handleSkip = () => {
+    router.push('/host/dashboard');
+  };
 
   return (
     <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10 text-center">
