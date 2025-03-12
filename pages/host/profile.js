@@ -1,4 +1,4 @@
-// pages/host/profile.js
+// pages/host/profile.js - Versione corretta
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../components/layout/Layout';
@@ -28,31 +28,47 @@ function Profile() {
   // Initialize form data from profile with added safety checks
   useEffect(() => {
     let timeoutId;
+    let isMounted = true;
 
     // Set a timeout to prevent infinite loading
     timeoutId = setTimeout(() => {
-      if (loadingProfile) {
+      if (isMounted && loadingProfile) {
         console.warn('Profile loading timed out, showing default form');
         setLoadingProfile(false);
       }
     }, 5000);
 
-    if (profile) {
-      setProfileData({
-        name: profile.name || '',
-        phone: profile.phone || '',
-      });
-      setLoadingProfile(false);
-    } else if (user) {
-      // If we have a user but no profile, create a default form
-      setProfileData({
-        name: user.email ? user.email.split('@')[0] : '',
-        phone: '',
-      });
-      setLoadingProfile(false);
+    // Funzione per inizializzare il form
+    const initializeForm = () => {
+      if (!isMounted) return;
+
+      // Solo se abbiamo un profilo valido
+      if (profile) {
+        console.log('Profile data loaded:', profile);
+        setProfileData({
+          name: profile.name || '',
+          phone: profile.phone || '',
+        });
+        setLoadingProfile(false);
+      } 
+      // Se abbiamo un utente ma non un profilo
+      else if (user) {
+        console.log('No profile found, using default values');
+        setProfileData({
+          name: user.email ? user.email.split('@')[0] : '',
+          phone: '',
+        });
+        setLoadingProfile(false);
+      }
+    };
+
+    // Attendiamo che i dati siano disponibili
+    if (user !== null && profile !== undefined) {
+      initializeForm();
     }
 
     return () => {
+      isMounted = false;
       clearTimeout(timeoutId);
     };
   }, [profile, user]);

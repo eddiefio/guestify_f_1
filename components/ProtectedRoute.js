@@ -1,10 +1,10 @@
-// components/ProtectedRoute.js
+// components/ProtectedRoute.js - Versione corretta
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
+  const { user, loading, authInitialized } = useAuth();
   const router = useRouter();
   const [isVerifying, setIsVerifying] = useState(true);
 
@@ -22,8 +22,8 @@ export default function ProtectedRoute({ children }) {
       }
     }, 5000); // 5 seconds timeout
 
-    // Normal verification logic
-    if (!loading) {
+    // Verifica solo dopo che l'autenticazione è stata inizializzata
+    if (!loading && authInitialized) {
       if (!user) {
         // Se non c'è un utente, reindirizza alla pagina di login
         console.log('No user found, redirecting to login');
@@ -35,7 +35,7 @@ export default function ProtectedRoute({ children }) {
     }
 
     return () => clearTimeout(timeoutId);
-  }, [user, loading, router, isVerifying]);
+  }, [user, loading, authInitialized, router, isVerifying]);
 
   // Mostra un'interfaccia di caricamento o nulla durante la verifica
   if (loading || isVerifying) {

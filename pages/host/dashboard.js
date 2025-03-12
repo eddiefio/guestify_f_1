@@ -1,4 +1,4 @@
-// pages/host/dashboard.js
+// pages/host/dashboard.js - Versione corretta
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -21,9 +21,10 @@ function Dashboard() {
 
     async function fetchProperties() {
       try {
-        if (!user) {
+        // Verifico esplicitamente se l'utente è disponibile
+        if (!user || !user.id) {
           if (isMounted) {
-            // Set empty properties if no user (avoid showing spinner indefinitely)
+            console.log('No valid user found in dashboard, not fetching properties');
             setProperties([]);
             setLoading(false);
           }
@@ -62,10 +63,15 @@ function Dashboard() {
           setError('Failed to load properties: ' + (err.message || 'Unknown error'));
           setLoading(false);
         }
+      } finally {
+        // Assicuriamoci sempre di eliminare il timeout
+        if (fetchTimeout) {
+          clearTimeout(fetchTimeout);
+        }
       }
     }
 
-    // Only fetch if we're in a loading state
+    // Inizia il fetch dei dati solo se c'è un utente valido e siamo in stato di caricamento
     if (loading) {
       fetchProperties();
     }
