@@ -1,8 +1,7 @@
-// pages/api/stripe/connect.js
 import Stripe from 'stripe';
-import { createClient } from '@supabase/supabase-js';
+import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'your_test_key_here');
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 
 export default async function handler(req, res) {
   // Only accept POST requests
@@ -10,50 +9,25 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Create Supabase client
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ndiqnzxplopcbcxzondp.supabase.co',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kaXFuenhwbG9wY2JjeHpvbmRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk1NDkxODQsImV4cCI6MjA1NTEyNTE4NH0.jCnn7TFfGV1EpBHhO1ITa8PMytD7UJfADpuzrzZOgpw'
-  );
-
-  // Get the token from Authorization header
-  const authHeader = req.headers.authorization;
-  const token = authHeader ? authHeader.split('Bearer ')[1] : null;
-  
-  if (!token) {
-    console.error('No token provided in request');
-    return res.status(401).json({ error: 'No authentication token provided' });
-  }
-
   try {
-    // Set the session with the token
-    const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-      access_token: token,
-      refresh_token: ''
-    });
-
-    if (sessionError) {
-      console.error('Session error:', sessionError);
-      return res.status(401).json({ error: 'Invalid authentication token' });
+    // Crea un client server-side di Supabase
+    const supabase = createServerSupabaseClient({ req, res });
+    
+    // Verifica la sessione (questo legge dai cookie)
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError || !session) {
+      return res.status(401).json({ error: 'Not authenticated' });
     }
-
-    // Get the user from the session
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      console.error('User error:', userError);
-      return res.status(401).json({ error: 'User not found with provided token' });
-    }
-
-    // Process request
+    
+    const user = session.user;
     const { userId } = req.body;
 
     if (userId !== user.id) {
-      return res.status(403).json({ error: 'User ID mismatch' });
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
-    // Resto del codice rimane uguale
-    // Check if user already has a Stripe account in Supabase
+    // Controlla se l'utente ha già un account Stripe
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('stripe_account_id')
@@ -66,7 +40,7 @@ export default async function handler(req, res) {
 
     let stripeAccountId = profile?.stripe_account_id;
 
-    // If no Stripe account exists, create one
+    // Se non esiste un account Stripe, creane uno nuovo
     if (!stripeAccountId) {
       const account = await stripe.accounts.create({
         type: 'express',
@@ -75,7 +49,7 @@ export default async function handler(req, res) {
 
       stripeAccountId = account.id;
 
-      // Update the user's profile with the Stripe account ID
+      // Aggiorna il profilo con l'ID dell'account Stripe
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ stripe_account_id: stripeAccountId })
@@ -86,15 +60,17 @@ export default async function handler(req, res) {
       }
     }
 
-    // Create an account link for onboarding
+    // Crea un link di onboarding
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
-      refresh_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/host/connect-stripe`,
-      return_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/host/dashboard`,
+      refresh_url: `${baseUrl}/host/connect-stripe`,
+      return_url: `${baseUrl}/host/dashboard`,
       type: 'account_onboarding',
     });
 
-    // Return the URL to redirect to
+    // Restituisci l'URL per il redirect
     return res.status(200).json({
       url: accountLink.url,
     });
