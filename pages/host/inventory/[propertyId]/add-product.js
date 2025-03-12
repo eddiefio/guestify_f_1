@@ -2,11 +2,18 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import Layout from '../../../../components/layout/Layout';
 import { supabase } from '../../../../lib/supabase';
 import ProtectedRoute from '../../../../components/ProtectedRoute';
 import ButtonLayout from '../../../../components/ButtonLayout';
-import BarcodeScanner from '../../../../components/BarcodeScanner';
+
+// Importa dinamicamente il componente BarcodeScanner per evitare errori SSR
+// poiché la libreria html5-qrcode richiede il browser
+const BarcodeScanner = dynamic(
+  () => import('../../../../components/BarcodeScanner'),
+  { ssr: false }
+);
 
 export default function AddProduct() {
   const [formData, setFormData] = useState({
@@ -24,7 +31,7 @@ export default function AddProduct() {
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
-  const [productFound, setProductFound] = useState(false); // Flag per indicare se un prodotto è stato trovato
+  const [productFound, setProductFound] = useState(false);
   const router = useRouter();
   const { propertyId } = router.query;
 
@@ -95,7 +102,7 @@ export default function AddProduct() {
         }
       } else {
         console.log('Product not found, only setting barcode');
-        // Just set the barcode
+        // Imposta solo il barcode
         setFormData(prev => ({
           ...prev,
           barcode,
@@ -259,7 +266,7 @@ export default function AddProduct() {
       }, 1500);
     } catch (err) {
       console.error('Error adding product:', err);
-      setError('Failed to add product');
+      setError('Failed to add product: ' + (err.message || 'Unknown error'));
       setLoading(false);
     }
   };
@@ -280,9 +287,16 @@ export default function AddProduct() {
 
   const startBarcodeScanner = () => {
     setScanning(true);
+    setError(null); // Pulisce eventuali errori precedenti
   };
 
   const stopBarcodeScanner = () => {
+    setScanning(false);
+  };
+
+  const handleScannerError = (err) => {
+    console.error('Scanner error:', err);
+    setError(`Scanner error: ${err.message || 'Cannot access camera'}`);
     setScanning(false);
   };
 
@@ -323,7 +337,7 @@ export default function AddProduct() {
             <button
               type="button"
               onClick={scanning ? stopBarcodeScanner : startBarcodeScanner}
-              className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition"
+              className={`${scanning ? 'bg-red-500' : 'bg-blue-500'} text-white px-3 py-1 rounded text-sm hover:opacity-90 transition`}
             >
               {scanning ? 'Stop Scanning' : 'Scan Barcode'}
             </button>
@@ -343,7 +357,7 @@ export default function AddProduct() {
             <BarcodeScanner 
               isScanning={scanning} 
               onDetected={handleBarcodeDetected} 
-              onError={(err) => setError(`Camera error: ${err.message}`)}
+              onError={handleScannerError}
             />
           </div>
         )}

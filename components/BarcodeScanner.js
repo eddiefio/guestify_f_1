@@ -1,8 +1,9 @@
 // components/BarcodeScanner.js
 import { useState, useEffect, useRef } from 'react';
+import { Html5Qrcode } from 'html5-qrcode';
 
 /**
- * Componente per la scansione dei codici a barre
+ * Componente per la scansione di codici a barre utilizzando html5-qrcode
  * 
  * @param {Object} props - Le props del componente
  * @param {function} props.onDetected - Callback chiamato quando un barcode viene rilevato
@@ -10,130 +11,128 @@ import { useState, useEffect, useRef } from 'react';
  * @param {function} props.onError - Callback chiamato in caso di errore
  */
 export default function BarcodeScanner({ onDetected, isScanning, onError }) {
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const [stream, setStream] = useState(null);
   const [error, setError] = useState(null);
-
-  // Setup e cleanup dello scanner
+  const scannerRef = useRef(null);
+  const containerRef = useRef(null);
+  
   useEffect(() => {
-    let animationFrameId = null;
-    let videoTrack = null;
+    let scanner = null;
+
+    // Configurazione dello scanner
+    const config = {
+      fps: 10,
+      qrbox: { width: 250, height: 150 },
+      formatsToSupport: [
+        Html5Qrcode.FORMATS.EAN_13,  // Formato comune per prodotti commerciali
+        Html5Qrcode.FORMATS.EAN_8,    // Versione corta dell'EAN
+        Html5Qrcode.FORMATS.UPC_A,    // Codici universali per prodotti
+        Html5Qrcode.FORMATS.UPC_E,    // Versione corta dell'UPC
+        Html5Qrcode.FORMATS.CODE_39,  // Codice 39, usato in vari settori
+        Html5Qrcode.FORMATS.CODE_93,  // Codice 93
+        Html5Qrcode.FORMATS.CODE_128  // Codice 128, molto versatile
+      ],
+      aspectRatio: 1.0,
+      showTorchButtonIfSupported: true,
+      showZoomSliderIfSupported: true
+    };
 
     const startScanner = async () => {
       try {
-        // Richiedi l'accesso alla fotocamera
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' } // Preferisci la fotocamera posteriore
-        });
-        
-        setStream(mediaStream);
-        videoTrack = mediaStream.getVideoTracks()[0];
-        
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
+        // Assicuriamoci che il container sia vuoto prima di inizializzare
+        if (containerRef.current) {
+          containerRef.current.innerHTML = '';
           
-          // Quando il video è caricato, inizia l'analisi dei frame
-          videoRef.current.onloadedmetadata = () => {
-            const scanFrame = () => {
-              if (!isScanning || !videoRef.current || !canvasRef.current) return;
-              
-              const video = videoRef.current;
-              const canvas = canvasRef.current;
-              const ctx = canvas.getContext('2d');
-              
-              // Assicurati che canvas e video abbiano le stesse dimensioni
-              canvas.width = video.videoWidth;
-              canvas.height = video.videoHeight;
-              
-              // Disegna il frame corrente sul canvas
-              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-              
-              // Prova a scansionare il frame (simuliamo qui)
-              // In una implementazione reale useremmo una libreria come ZXing o QuaggaJS
-              // per analizzare il frame e trovare il barcode
-              
-              // Poiché non possiamo integrare una vera libreria di scansione qui,
-              // simuliamo un rilevamento dopo 3 secondi per scopi dimostrativi
-              if (Math.random() < 0.01) { // ~1% di probabilità per frame
-                // Genera un barcode casuale per la demo
-                const mockBarcode = Math.floor(Math.random() * 10000000000000).toString();
-                onDetected(mockBarcode);
-                return; // Terminiamo il ciclo
-              }
-              
-              // Continua ad analizzare i frame
-              animationFrameId = requestAnimationFrame(scanFrame);
-            };
+          // Creiamo un elemento per lo scanner
+          const scannerElement = document.createElement('div');
+          scannerElement.id = 'html5qr-code-full-region';
+          containerRef.current.appendChild(scannerElement);
+          
+          // Inizializziamo lo scanner
+          scanner = new Html5Qrcode('html5qr-code-full-region');
+          scannerRef.current = scanner;
+          
+          // Quando viene rilevato un codice
+          const onScanSuccess = (decodedText, decodedResult) => {
+            console.log(`Barcode detected: ${decodedText}`, decodedResult);
             
-            scanFrame();
+            // Fermiamo lo scanner e chiamiamo il callback
+            if (scanner) {
+              scanner.stop().then(() => {
+                onDetected(decodedText);
+              }).catch(err => {
+                console.error('Error stopping scanner:', err);
+              });
+            }
           };
+          
+          // Quando si verifica un errore durante la scansione
+          const onScanFailure = (error) => {
+            // Non facciamo nulla, è normale avere errori quando non c'è un codice a barre nel frame
+            // console.warn(`Scan error: ${error}`);
+          };
+          
+          // Avviamo lo scanner usando la fotocamera
+          await scanner.start(
+            { facingMode: "environment" }, // Preferisci la fotocamera posteriore
+            config,
+            onScanSuccess,
+            onScanFailure
+          );
         }
       } catch (err) {
-        console.error('Error accessing camera:', err);
-        setError('Failed to access camera. Please ensure you have granted camera permissions.');
+        console.error('Error starting scanner:', err);
+        setError(`Cannot access camera: ${err.message}`);
         if (onError) onError(err);
       }
     };
 
-    // Avvia o ferma lo scanner in base allo stato isScanning
+    const stopScanner = async () => {
+      if (scannerRef.current) {
+        try {
+          await scannerRef.current.stop();
+          scannerRef.current = null;
+          
+          // Puliamo il container
+          if (containerRef.current) {
+            containerRef.current.innerHTML = '';
+          }
+        } catch (err) {
+          console.error('Error stopping scanner:', err);
+        }
+      }
+    };
+
+    // Avvia o ferma lo scanner in base a isScanning
     if (isScanning) {
       startScanner();
     } else {
-      // Ferma la scansione e rilascia le risorse
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        setStream(null);
-      }
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
+      stopScanner();
     }
 
-    // Cleanup quando il componente viene smontato
+    // Pulizia quando il componente viene smontato
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
+      stopScanner();
     };
   }, [isScanning, onDetected, onError]);
 
   return (
-    <div className="relative w-full">
+    <div className="w-full">
       {error && (
         <div className="bg-red-100 text-red-700 p-3 rounded mb-2 text-sm">
           {error}
         </div>
       )}
       
-      <div className="w-full bg-black relative rounded overflow-hidden" style={{ height: '240px' }}>
-        <video
-          ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover"
-          autoPlay
-          playsInline
-          muted
-        />
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 w-full h-full opacity-0"
-        />
-        
-        {/* Overlay con mirino per guidare l'utente */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0 border-2 border-white opacity-50 m-8 rounded"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white bg-black bg-opacity-50 px-2 py-1 rounded text-sm">
-            Point camera at barcode
-          </div>
-        </div>
+      <div 
+        ref={containerRef}
+        className="w-full bg-black relative rounded overflow-hidden" 
+        style={{ minHeight: '300px' }}
+      >
+        {/* Il contenuto dello scanner verrà inserito qui dinamicamente dalla libreria */}
       </div>
       
-      {/* Solo a scopo di demo, permettiamo input manuale */}
       <p className="text-xs text-gray-500 mt-2 text-center">
-        If scanning doesn't work, please enter the barcode manually
+        Point the camera at a barcode and hold it steady
       </p>
     </div>
   );
