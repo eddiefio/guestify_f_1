@@ -1,4 +1,4 @@
-// contexts/AuthContext.js - Versione ottimizzata per prestazioni
+// contexts/AuthContext.js - Versione ottimizzata con controllo Stripe
 import { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { supabase, fetchWithRetry } from '../lib/supabase';
@@ -11,8 +11,6 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [authInitialized, setAuthInitialized] = useState(false);
   const router = useRouter();
-
-  
 
   // Funzione per ottenere il profilo utente con memoization
   const fetchUserProfile = useCallback(async (userId) => {
@@ -76,33 +74,34 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Aggiungi questa funzione per verificare se è necessario completare l'onboarding Stripe
+  const checkStripeOnboarding = async (userId) => {
+    try {
+      // Controlla se l'utente ha un account Stripe
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('stripe_account_id')
+        .eq('id', userId)
+        .single();
+
+      // Se l'utente non ha un account Stripe e sta visitando la pagina printqr
+      // reindirizzalo alla pagina connect-stripe
+      if ((!data?.stripe_account_id || data.stripe_account_id === '') && 
+          typeof window !== 'undefined' && 
+          window.location.pathname.includes('/host/printqr/')) {
+        const propertyId = window.location.pathname.split('/').pop();
+        window.location.href = `/host/connect-stripe?returnUrl=/host/printqr/${propertyId}`;
+      }
+    } catch (err) {
+      console.error('Error checking Stripe onboarding:', err);
+    }
+  };
+
   useEffect(() => {
     let isSubscribed = true;
     let authTimeout;
 
     // Funzione per inizializzare l'autenticazione
-    const checkStripeOnboarding = async (userId) => {
-      try {
-        // Controlla se l'utente ha un account Stripe
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('stripe_account_id')
-          .eq('id', userId)
-          .single();
-    
-        // Se l'utente non ha un account Stripe e sta visitando la pagina printqr
-        // reindirizzalo alla pagina connect-stripe
-        if ((!data?.stripe_account_id || data.stripe_account_id === '') && 
-            typeof window !== 'undefined' && 
-            window.location.pathname.includes('/host/printqr/')) {
-          const propertyId = window.location.pathname.split('/').pop();
-          window.location.href = `/host/connect-stripe?returnUrl=/host/printqr/${propertyId}`;
-        }
-      } catch (err) {
-        console.error('Error checking Stripe onboarding:', err);
-      }
-    };
-    
     const initializeAuth = async () => {
       try {
         console.log('Initializing auth context...');
@@ -188,6 +187,8 @@ export function AuthProvider({ children }) {
           const profileData = await fetchUserProfile(session.user.id);
           if (isSubscribed) {
             setProfile(profileData);
+            
+            // Controlla se l'utente ha bisogno di completare l'onboarding Stripe
             await checkStripeOnboarding(session.user.id);
           }
         } else {
@@ -239,6 +240,9 @@ export function AuthProvider({ children }) {
             const profileData = await fetchUserProfile(session.user.id);
             if (isSubscribed) {
               setProfile(profileData);
+              
+              // Controlla se l'utente ha bisogno di completare l'onboarding Stripe
+              await checkStripeOnboarding(session.user.id);
             }
           } else {
             setUser(null);
@@ -320,12 +324,13 @@ export function AuthProvider({ children }) {
         }
         
         setUser(data.user);
-
-        
         
         // Get profile
         const profileData = await fetchUserProfile(data.user.id);
         setProfile(profileData);
+        
+        // Controlla se l'utente ha bisogno di completare l'onboarding Stripe
+        await checkStripeOnboarding(data.user.id);
       }
       
       return { user: data.user, error: null };
