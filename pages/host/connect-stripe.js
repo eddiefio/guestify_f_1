@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
 
 export default function ConnectStripe() {
   const [loading, setLoading] = useState(false);
@@ -15,45 +14,22 @@ export default function ConnectStripe() {
     setError(null);
 
     try {
-      // Usa direttamente la funzione built-in di supabase
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        throw new Error(`Session error: ${sessionError.message}`);
-      }
-      
-      if (!sessionData.session) {
-        throw new Error('No active session found. Please login again.');
-      }
-      
-      // Debug per verificare info di sessione
-      console.log('Session data:', JSON.stringify({
-        hasSession: !!sessionData.session,
-        hasToken: !!sessionData.session?.access_token,
-        userId: user?.id
-      }));
-
       const response = await fetch('/api/stripe/connect', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // Usa il token dalla sessione corrente
-          'Authorization': `Bearer ${sessionData.session.access_token}`
         },
         body: JSON.stringify({ 
-          userId: user?.id,
-          // Invia anche l'email per debug
-          userEmail: user?.email 
+          userId: user?.id 
         }),
-        credentials: 'include'
+        credentials: 'same-origin' // Importante: manda i cookie con la richiesta
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to connect with Stripe');
-      }
-
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to connect with Stripe');
+      }
 
       // Redirect to Stripe onboarding
       if (data.url) {
