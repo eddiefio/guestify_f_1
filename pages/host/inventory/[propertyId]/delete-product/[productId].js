@@ -5,6 +5,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import Layout from '../../../../../components/layout/Layout';
 import { supabase } from '../../../../../lib/supabase';
+import ProtectedRoute from '../../../../../components/ProtectedRoute';
+import ButtonLayout from '../../../../../components/ButtonLayout';
 
 export default function DeleteProduct() {
   const [product, setProduct] = useState(null);
@@ -56,7 +58,8 @@ export default function DeleteProduct() {
     fetchProduct();
   }, [propertyId, productId]);
 
-  const handleDelete = async () => {
+  const handleDelete = async (e) => {
+    e.preventDefault(); // Importante per gestire il form correttamente
     try {
       setDeleting(true);
       
@@ -106,8 +109,8 @@ export default function DeleteProduct() {
       <h2 className="text-xl font-bold text-red-600 mb-4">Confirm Product Deletion</h2>
       
       {product && (
-        <div className="space-y-4">
-          <div className="flex items-center space-x-4">
+        <form onSubmit={handleDelete}>
+          <div className="flex items-center space-x-4 mb-6">
             {product.image_url ? (
               <div className="flex-shrink-0">
                 <Image 
@@ -154,26 +157,23 @@ export default function DeleteProduct() {
             </div>
           </div>
           
-          <div className="flex space-x-4">
-            <Link href={`/host/inventory/${propertyId}`}>
-              <span className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition cursor-pointer">
-                Cancel
-              </span>
-            </Link>
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
-            >
-              {deleting ? 'Deleting...' : 'Delete'}
-            </button>
-          </div>
-        </div>
+          <ButtonLayout 
+            cancelHref={`/host/inventory/${propertyId}`}
+            submitText="Delete"
+            loading={deleting}
+            loadingText="Deleting..."
+            danger={true}
+          />
+        </form>
       )}
     </div>
   );
 }
 
 DeleteProduct.getLayout = function getLayout(page) {
-  return <Layout title="Delete Product - Guestify">{page}</Layout>;
+  return (
+    <Layout title="Delete Product - Guestify">
+      <ProtectedRoute>{page}</ProtectedRoute>
+    </Layout>
+  );
 };

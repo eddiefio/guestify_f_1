@@ -1,9 +1,10 @@
 // pages/host/delete-property/[propertyId].js
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import Link from 'next/link';
 import Layout from '../../../components/layout/Layout';
 import { supabase } from '../../../lib/supabase';
+import ProtectedRoute from '../../../components/ProtectedRoute';
+import ButtonLayout from '../../../components/ButtonLayout';
 
 export default function DeleteProperty() {
   const [property, setProperty] = useState(null);
@@ -37,7 +38,8 @@ export default function DeleteProperty() {
     fetchProperty();
   }, [propertyId]);
 
-  const handleDelete = async () => {
+  const handleDelete = async (e) => {
+    e.preventDefault(); // Importante per gestire il form correttamente
     try {
       setDeleting(true);
       const { error } = await supabase
@@ -70,11 +72,11 @@ export default function DeleteProperty() {
         <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
           {error}
         </div>
-        <Link href="/host/dashboard">
-          <span className="text-blue-500 hover:underline cursor-pointer">
-            Back to Dashboard
-          </span>
-        </Link>
+        
+        <ButtonLayout 
+          cancelHref="/host/dashboard"
+          cancelText="Back to Dashboard"
+        />
       </div>
     );
   }
@@ -84,7 +86,7 @@ export default function DeleteProperty() {
       <h2 className="text-xl font-bold text-red-600 mb-4">Delete Property</h2>
       
       {property && (
-        <>
+        <form onSubmit={handleDelete}>
           <p className="mb-4">
             Are you sure you want to delete the property:
             <span className="font-semibold block mt-2">{property.name}</span>
@@ -104,26 +106,23 @@ export default function DeleteProperty() {
             </div>
           </div>
           
-          <div className="flex space-x-4">
-            <Link href="/host/dashboard">
-              <span className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition cursor-pointer">
-                Cancel
-              </span>
-            </Link>
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
-            >
-              {deleting ? 'Deleting...' : 'Delete'}
-            </button>
-          </div>
-        </>
+          <ButtonLayout 
+            cancelHref="/host/dashboard"
+            submitText="Delete"
+            loading={deleting}
+            loadingText="Deleting..."
+            danger={true}
+          />
+        </form>
       )}
     </div>
   );
 }
 
 DeleteProperty.getLayout = function getLayout(page) {
-  return <Layout title="Delete Property - Guestify">{page}</Layout>;
+  return (
+    <Layout title="Delete Property - Guestify">
+      <ProtectedRoute>{page}</ProtectedRoute>
+    </Layout>
+  );
 };

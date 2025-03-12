@@ -4,6 +4,8 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../../../../components/layout/Layout';
 import { supabase } from '../../../../lib/supabase';
+import ProtectedRoute from '../../../../components/ProtectedRoute';
+import ButtonLayout from '../../../../components/ButtonLayout';
 
 export default function AddProduct() {
   const [formData, setFormData] = useState({
@@ -396,25 +398,21 @@ export default function AddProduct() {
           />
         </div>
 
-        <div className="flex justify-between pt-4">
-          <Link href={`/host/inventory/${propertyId}`}>
-            <span className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition cursor-pointer">
-              Cancel
-            </span>
-          </Link>
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-4 py-2 bg-[#fad02f] text-black rounded hover:opacity-90 transition font-semibold"
-          >
-            {loading ? 'Adding...' : 'Add Product'}
-          </button>
-        </div>
+        <ButtonLayout 
+          cancelHref={`/host/inventory/${propertyId}`}
+          submitText="Add Product"
+          loading={loading}
+          loadingText="Adding..."
+        />
       </form>
     </div>
   );
 }
 
 AddProduct.getLayout = function getLayout(page) {
-  return <Layout title="Add Product - Guestify">{page}</Layout>;
+  return (
+    <Layout title="Add Product - Guestify">
+      <ProtectedRoute>{page}</ProtectedRoute>
+    </Layout>
+  );
 };

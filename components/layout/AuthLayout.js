@@ -19,9 +19,17 @@ export default function AuthLayout({ children, title = 'Guestify - Auth' }) {
       <header className="bg-[#5e2bff] p-4 shadow-md rounded-b-xl">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center">
-            <Image src="/images/guestify_logo.png" alt="Guestify" width={32} height={32} className="h-8 w-auto mr-2" />
+            <Image 
+              src="/images/guestify_logo.png" 
+              alt="Guestify" 
+              width={32} 
+              height={32} 
+              quality={100}
+              className="h-8 w-auto object-contain" 
+              priority
+            />
           </div>
-          <nav>
+          <nav className="flex items-center">
             {user && (
               <>
                 <Link href="/host/dashboard">

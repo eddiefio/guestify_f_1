@@ -1,12 +1,12 @@
 // pages/host/add-property.js
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import Link from 'next/link';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { CountrySelect } from '../../components/layout/CountrySelect';
 import ProtectedRoute from '../../components/ProtectedRoute';
+import ButtonLayout from '../../components/ButtonLayout';
 
 export default function AddProperty() {
   const [formData, setFormData] = useState({
@@ -173,21 +173,13 @@ export default function AddProperty() {
           />
         </div>
         
-        {/* Container dei bottoni corretto */}
-        <div className="flex justify-end space-x-4">
-          <Link href="/host/dashboard">
-            <span className="inline-block px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition cursor-pointer">
-              Cancel
-            </span>
-          </Link>
-          <button 
-            type="submit" 
-            className="inline-block px-4 py-2 bg-[#fad02f] text-black rounded hover:opacity-90 transition font-semibold"
-            disabled={loading}
-          >
-            {loading ? 'Saving...' : 'Save'}
-          </button>
-        </div>
+        {/* Utilizzo del componente ButtonLayout per i bottoni */}
+        <ButtonLayout 
+          cancelHref="/host/dashboard"
+          submitText="Save"
+          loading={loading}
+          loadingText="Saving..."
+        />
       </form>
     </div>
   );

@@ -27,8 +27,10 @@ export default function Layout({ children, title = 'Guestify' }) {
                     src="/images/guestify_logo.png" 
                     alt="Guestify" 
                     width={40} 
-                    height={40} 
-                    className="h-10 w-auto" 
+                    height={40}
+                    quality={100}
+                    className="h-10 w-auto object-contain" 
+                    priority
                   />
                 </span>
               </Link>
@@ -38,8 +40,10 @@ export default function Layout({ children, title = 'Guestify' }) {
                   src="/images/guestify_logo.png" 
                   alt="Guestify" 
                   width={40} 
-                  height={40} 
-                  className="h-10 w-auto" 
+                  height={40}
+                  quality={100}
+                  className="h-10 w-auto object-contain" 
+                  priority
                 />
               </span>
             )}
@@ -59,7 +63,7 @@ export default function Layout({ children, title = 'Guestify' }) {
                   Logout
                 </button>
                 <Link href="/host/profile">
-                  <span className="ml-2 cursor-pointer">
+                  <span className="ml-2 cursor-pointer flex items-center">
                     <div className="h-8 w-8 rounded-full bg-white text-[#5e2bff] flex items-center justify-center">
                       <i className="fas fa-smile"></i>
                     </div>
