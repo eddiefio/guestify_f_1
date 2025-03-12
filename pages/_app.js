@@ -4,6 +4,7 @@ import Head from 'next/head';
 import { useState, useEffect } from 'react';
 import { AuthProvider } from '../contexts/AuthContext';
 import { CartProvider } from '../contexts/CartContext';
+import '@fortawesome/fontawesome-free/css/all.min.css';
 
 function MyApp({ Component, pageProps }) {
   const [isClient, setIsClient] = useState(false);
