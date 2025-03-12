@@ -17,15 +17,17 @@ export default function SignIn() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
+  
     try {
       const { user, error } = await signIn(email, password);
       
       if (error) throw error;
       
       if (user) {
-        // Redirect to dashboard on successful login
-        router.push('/host/dashboard');
+        // Aggiungi un piccolo ritardo per garantire che la sessione sia stabilita
+        setTimeout(() => {
+          router.push('/host/dashboard');
+        }, 500);
       }
     } catch (error) {
       console.error('Error signing in:', error);

@@ -62,19 +62,26 @@ export function AuthProvider({ children }) {
   }, []);
 
   // Sign in with email and password
-  const signIn = async (email, password) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) throw error;
-      return { user: data.user, error: null };
-    } catch (error) {
-      return { user: null, error };
+  // Sign in with email and password
+const signIn = async (email, password) => {
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    
+    if (error) throw error;
+    
+    // Imposta esplicitamente la sessione
+    if (data.session) {
+      await supabase.auth.setSession(data.session);
     }
-  };
+    
+    return { user: data.user, error: null };
+  } catch (error) {
+    return { user: null, error };
+  }
+};
 
   // Sign up new user
   const signUp = async (email, password, metadata) => {
