@@ -82,8 +82,7 @@ export function AuthProvider({ children }) {
     try {
       console.log('Signing in user:', email);
       
-      // Clear any existing session
-      await supabase.auth.signOut();
+      
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
