@@ -25,12 +25,11 @@ function MyApp({ Component, pageProps }) {
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
       </Head>
       <link 
-        rel="stylesheet" 
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" 
-        integrity="sha512-iecdLmaskl7CVpqr0aRwUbEi0FqVIMC1VLxoJrEzVjdPqp05tO4vc1+GjKVvGFBPFHG6+M1YVHVGB8zN1E2z5Q==" 
-        crossOrigin="anonymous" 
-        referrerPolicy="no-referrer" 
-      />
+  rel="stylesheet" 
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" 
+  crossOrigin="anonymous" 
+  referrerPolicy="no-referrer" 
+/>
       
       {/* Rendiamo il contenuto solo quando siamo sul client per evitare problemi di idratazione */}
       {isClient && (
