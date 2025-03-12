@@ -172,7 +172,7 @@ SignUp.getLayout = function getLayout(page) {
       </div>
     </div>
   );
-}
+
 
 SignUp.getLayout = function getLayout(page) {
   return <AuthLayout title="Sign Up - Guestify">{page}</AuthLayout>;
