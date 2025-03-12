@@ -62,9 +62,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   // Sign in with email and password
-  // Sign in with email and password
+
 const signIn = async (email, password) => {
   try {
+    // Prima facciamo un sign out per pulire eventuali sessioni parziali
+    await supabase.auth.signOut();
+    
+    // Poi eseguiamo il login
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -72,13 +76,23 @@ const signIn = async (email, password) => {
     
     if (error) throw error;
     
-    // Imposta esplicitamente la sessione
-    if (data.session) {
-      await supabase.auth.setSession(data.session);
+    // Se abbiamo una sessione, aggiorniamo lo stato utente
+    if (data.user) {
+      setUser(data.user);
+      
+      // Fetch user profile
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+      
+      setProfile(profileData || null);
     }
     
     return { user: data.user, error: null };
   } catch (error) {
+    console.error('Login error:', error);
     return { user: null, error };
   }
 };

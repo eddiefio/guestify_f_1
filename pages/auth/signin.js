@@ -24,15 +24,20 @@ export default function SignIn() {
       if (error) throw error;
       
       if (user) {
-        // Aggiungi un piccolo ritardo per garantire che la sessione sia stabilita
+        // Attendiamo che la sessione sia completata prima di navigare
+        console.log('Login successful, navigating to dashboard...');
+        
+        // Impostiamo un flag nel localStorage per indicare che siamo appena loggati
+        localStorage.setItem('just_authenticated', 'true');
+        
+        // Navigazione con ritardo per dare tempo alla sessione di stabilirsi
         setTimeout(() => {
           router.push('/host/dashboard');
-        }, 500);
+        }, 1000);
       }
     } catch (error) {
       console.error('Error signing in:', error);
       setError(error.message || 'Failed to sign in');
-    } finally {
       setLoading(false);
     }
   };
