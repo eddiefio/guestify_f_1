@@ -13,6 +13,8 @@ export default function ConnectStripe() {
   const router = useRouter();
   const { user, profile } = useAuth();
 
+  console.log("ConnectStripe - User profile:", profile);
+
   // Check if user already has a Stripe account connected
   useEffect(() => {
     if (!user || !profile) return;
@@ -58,7 +60,12 @@ export default function ConnectStripe() {
     setError(null);
 
     try {
-      // First try with the normal endpoint
+      // Store return URL in localStorage
+      if (router.query.returnUrl) {
+        localStorage.setItem('stripe_return_url', router.query.returnUrl);
+      }
+      
+      // Call Stripe connect API
       let response = await fetch('/api/stripe/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -71,33 +78,15 @@ export default function ConnectStripe() {
         credentials: 'include'
       });
 
-      // If it fails, try with the direct endpoint
-      if (!response.ok) {
-        console.log("Regular endpoint failed, trying direct connect");
-        response = await fetch('/api/stripe/direct-connect', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            userId: user?.id,
-            userEmail: user?.email,
-            returnUrl: router.query.returnUrl
-          })
-        });
-      }
-
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to connect with Stripe');
       }
 
-      // Store returnUrl in localStorage
-      if (router.query.returnUrl) {
-        localStorage.setItem('stripe_return_url', router.query.returnUrl);
-      }
-
       // Redirect to Stripe onboarding
       if (data.url) {
+        console.log('Redirecting to Stripe onboarding:', data.url);
         window.location.href = data.url;
       } else {
         throw new Error('No redirect URL returned');

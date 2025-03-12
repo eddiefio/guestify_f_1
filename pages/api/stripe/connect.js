@@ -1,4 +1,4 @@
-// pages/api/stripe/connect.js - Versione aggiornata con supporto returnUrl
+// pages/api/stripe/connect.js
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
@@ -127,21 +127,21 @@ export default async function handler(req, res) {
       const account = await stripe.accounts.create({
         type: 'express',
         email: user.email,
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
       });
 
       stripeAccountId = account.id;
       console.log('Created new Stripe account:', stripeAccountId);
 
-      // Update profile with Stripe account ID
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ stripe_account_id: stripeAccountId })
-        .eq('id', user.id);
-
-      if (updateError) {
-        console.error('Error updating profile:', updateError);
-        throw updateError;
-      }
+      // Store the Stripe account ID in a temporary global variable
+      // This is because we cannot update the database until Stripe onboarding is complete
+      global.tempStripeAccounts = global.tempStripeAccounts || {};
+      global.tempStripeAccounts[user.id] = stripeAccountId;
+      
+      console.log('Saved temporary Stripe account ID for user:', user.id);
     }
 
     // Create an account link for onboarding
@@ -151,23 +151,16 @@ export default async function handler(req, res) {
     
     // Get returnUrl from request body
     const returnUrl = req.body.returnUrl || null;
-    const encodedReturnUrl = returnUrl ? encodeURIComponent(returnUrl) : '';
-    const refreshUrl = returnUrl 
-      ? `${baseUrl}/host/connect-stripe?returnUrl=${encodedReturnUrl}`
-      : `${baseUrl}/host/connect-stripe`;
-    const stripeReturnUrl = returnUrl 
-      ? `${baseUrl}/host/stripe-callback?returnUrl=${encodedReturnUrl}`
-      : `${baseUrl}/host/stripe-callback`;
     
     // Create the account link with the appropriate return URL
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
-      refresh_url: refreshUrl,
-      return_url: stripeReturnUrl,
+      refresh_url: `${baseUrl}/host/connect-stripe`,
+      return_url: `${baseUrl}/host/stripe-redirect`,
       type: 'account_onboarding',
     });
 
-    console.log('Created Stripe onboarding link with returnUrl:', returnUrl || 'default');
+    console.log('Created Stripe onboarding link, redirecting user to Stripe');
     return res.status(200).json({ url: accountLink.url });
     
   } catch (error) {
