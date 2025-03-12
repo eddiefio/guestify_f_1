@@ -50,35 +50,15 @@ export default function PrintQR() {
         const url = `${baseUrl}/guest/menu/${propertyId}`;
         setMenuUrl(url);
         
-        // Modified QR code generation in pages/host/printqr/[propertyId].js
-// Replace the QR code generation part with this:
-
-// When generating the QR code:
-const generateQrCode = async (url) => {
-  try {
-    // Use toDataURL with more explicit options avoiding any internal eval usage
-    const qrDataUrl = await QRCode.toDataURL(url, {
-      errorCorrectionLevel: 'M',
-      margin: 1,
-      width: 400,
-      color: {
-        dark: '#5e2bff',
-        light: '#ffffff'
-      },
-      rendererOpts: {
-        quality: 1
-      }
-    });
-    
-    setQrCodeDataURL(qrDataUrl);
-  } catch (err) {
-    console.error('Error generating QR code:', err);
-    setError('Failed to generate QR code');
-  }
-};
-
-// Then call this function:
-// generateQrCode(url);
+        // Generate QR code
+        const qrDataUrl = await QRCode.toDataURL(url, {
+          width: 400,
+          margin: 1,
+          color: {
+            dark: '#5e2bff',
+            light: '#ffffff'
+          }
+        });
         
         setQrCodeDataURL(qrDataUrl);
       } catch (err) {
