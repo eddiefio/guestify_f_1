@@ -1,10 +1,10 @@
-// pages/auth/signup.js - Simplified version
+// pages/auth/signup.js
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import AuthLayout from '../../components/layout/AuthLayout';
+import { useAuth } from '../../contexts/AuthContext';
 import { CountrySelect } from '../../components/layout/CountrySelect';
-import { supabase } from '../../lib/supabase';
 
 export default function SignUp() {
   const [name, setName] = useState('');
@@ -14,8 +14,8 @@ export default function SignUp() {
   const [terms, setTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
   const router = useRouter();
+  const { signUp } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,22 +29,18 @@ export default function SignUp() {
     }
 
     try {
-      // Simple signup with minimal options
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password
-      });
+      const { user, error } = await signUp(email, password, { name, country });
       
-      if (error) throw error;
+      if (error) {
+        if (error.message.toLowerCase().includes('duplicate') || error.message.toLowerCase().includes('already')) {
+          throw new Error('User already exists');
+        }
+        throw error;
+      }
       
-      // Show success message
-      setSuccess(true);
-      
-      // Auto-redirect after a delay if session exists
-      if (data?.session) {
-        setTimeout(() => {
-          router.push('/host/dashboard');
-        }, 2000);
+      if (user) {
+        // Redirect to connect stripe page
+        router.push('/host/connect-stripe');
       }
     } catch (error) {
       console.error('Error signing up:', error);
@@ -54,24 +50,6 @@ export default function SignUp() {
     }
   };
 
-  // Success state UI
-  if (success) {
-    return (
-      <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10 text-center">
-        <i className="fas fa-check-circle text-green-500 text-5xl mb-4"></i>
-        <h2 className="text-2xl font-bold mb-4">Account Created!</h2>
-        <p className="mb-6">
-          Your account has been created successfully. You may need to verify your email before signing in.
-        </p>
-        <Link href="/auth/signin">
-          <span className="bg-black text-white py-2 px-6 rounded hover:bg-gray-800 transition font-semibold cursor-pointer">
-            Go to Sign In
-          </span>
-        </Link>
-      </div>
-    );
-  }
-  
   return (
     <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10">
       <h2 className="text-2xl font-bold mb-2">Create an account</h2>

@@ -1,4 +1,4 @@
-// contexts/AuthContext.js - Updated to handle email confirmation
+// contexts/AuthContext.js - Versione ottimizzata per prestazioni
 import { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { supabase, fetchWithRetry } from '../lib/supabase';
@@ -59,36 +59,6 @@ export function AuthProvider({ children }) {
       
       if (error) {
         console.error('Error fetching profile from Supabase:', error);
-        
-        // If the profile doesn't exist, let's create it
-        if (error.code === 'PGRST116') {
-          console.log('Profile not found, attempting to create it');
-          
-          // Get user details
-          const { data: userData } = await supabase.auth.getUser();
-          if (userData?.user) {
-            const userMetadata = userData.user.user_metadata || {};
-            
-            // Create a basic profile
-            const { data: newProfile, error: createError } = await supabase
-              .from('profiles')
-              .insert([{
-                id: userId,
-                name: userMetadata.name || userData.user.email?.split('@')[0] || '',
-                country: userMetadata.country || '',
-              }])
-              .select()
-              .single();
-              
-            if (createError) {
-              console.error('Error creating profile:', createError);
-              return null;
-            }
-            
-            return newProfile;
-          }
-        }
-        
         return null;
       }
       
@@ -342,7 +312,7 @@ export function AuthProvider({ children }) {
   // Sign up new user
   const signUp = async (email, password, metadata) => {
     try {
-      const { data, error: authError } = await fetchWithRetry(() => 
+      const { data, error } = await fetchWithRetry(() => 
         supabase.auth.signUp({
           email,
           password,
@@ -350,23 +320,17 @@ export function AuthProvider({ children }) {
         })
       );
       
-      if (authError) throw authError;
-      
-      // If we have a user but no session, email confirmation is required
-      if (data?.user && !data?.session) {
-        console.log('Email confirmation required for user:', data.user.id);
-        return { user: data.user, emailConfirmationRequired: true, error: null };
-      }
+      if (error) throw error;
       
       // Crea un nuovo profilo in Supabase
-      if (data?.user) {
+      if (data.user) {
         await fetchWithRetry(() => 
-          supabase.from('profiles').upsert([
+          supabase.from('profiles').insert([
             {
               id: data.user.id,
               ...metadata
             }
-          ], { onConflict: 'id' })
+          ])
         );
         
         // Salva la sessione in localStorage
@@ -427,23 +391,6 @@ export function AuthProvider({ children }) {
       const { data, error } = await fetchWithRetry(() => 
         supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/auth/reset-password`,
-        })
-      );
-      
-      if (error) throw error;
-      return { data, error: null };
-    } catch (error) {
-      return { data: null, error };
-    }
-  };
-
-  // Resend confirmation email
-  const resendConfirmationEmail = async (email) => {
-    try {
-      const { data, error } = await fetchWithRetry(() => 
-        supabase.auth.resend({
-          type: 'signup',
-          email,
         })
       );
       
@@ -515,7 +462,6 @@ export function AuthProvider({ children }) {
     signUp,
     signOut,
     resetPassword,
-    resendConfirmationEmail,
     updatePassword,
     updateProfile,
     isAuthenticated
