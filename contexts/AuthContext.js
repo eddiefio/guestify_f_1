@@ -30,45 +30,51 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     // Setup auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.id);
-        
-        if (session?.user) {
-          setUser(session.user);
-          
-          // Fetch user profile from profiles table
-          const profileData = await fetchUserProfile(session.user.id);
-          setProfile(profileData);
-        } else {
-          setUser(null);
-          setProfile(null);
-        }
-        setLoading(false);
-      }
-    );
+const { data: { subscription } } = supabase.auth.onAuthStateChange(
+  async (event, session) => {
+    console.log('Auth state changed:', event, session?.user?.id);
+    
+    // Aggiungi questa riga per evitare aggiornamenti inutili
+    if (event === 'INITIAL_SESSION') return;
+    
+    if (session?.user) {
+      setUser(session.user);
+      
+      // Fetch user profile from profiles table
+      const profileData = await fetchUserProfile(session.user.id);
+      setProfile(profileData);
+    } else {
+      setUser(null);
+      setProfile(null);
+    }
+    setLoading(false);
+  }
+);
 
-    // Get initial session
-    const initializeAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.user) {
-          console.log('Found existing session for user:', session.user.id);
-          setUser(session.user);
-          
-          // Fetch user profile
-          const profileData = await fetchUserProfile(session.user.id);
-          setProfile(profileData);
-        } else {
-          console.log('No session found');
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+   // Get initial session
+const initializeAuth = async () => {
+  // Aggiungi questa riga all'inizio della funzione
+  if (loading === false) return; // Previene chiamate ripetute
+  
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session?.user) {
+      console.log('Found existing session for user:', session.user.id);
+      setUser(session.user);
+      
+      // Fetch user profile
+      const profileData = await fetchUserProfile(session.user.id);
+      setProfile(profileData);
+    } else {
+      console.log('No session found');
+    }
+  } catch (error) {
+    console.error('Error initializing auth:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
     initializeAuth();
 
@@ -77,39 +83,39 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  // Sign in with email and password
-  const signIn = async (email, password) => {
-    try {
-      console.log('Signing in user:', email);
-      
-      
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) {
-        console.error('Sign in error:', error);
-        throw error;
-      }
-      
-      console.log('Sign in successful:', data.user?.id);
-      
-      if (data.user) {
-        setUser(data.user);
-        
-        // Get profile
-        const profileData = await fetchUserProfile(data.user.id);
-        setProfile(profileData);
-      }
-      
-      return { user: data.user, error: null };
-    } catch (error) {
-      console.error('Error in signIn function:', error);
-      return { user: null, error };
+ // Sign in with email and password
+const signIn = async (email, password) => {
+  try {
+    console.log('Signing in user:', email);
+    
+    // Non fare signOut prima di signIn
+    
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    
+    if (error) {
+      console.error('Sign in error:', error);
+      throw error;
     }
-  };
+    
+    console.log('Sign in successful:', data.user?.id);
+    
+    if (data.user) {
+      setUser(data.user);
+      
+      // Get profile
+      const profileData = await fetchUserProfile(data.user.id);
+      setProfile(profileData);
+    }
+    
+    return { user: data.user, error: null };
+  } catch (error) {
+    console.error('Error in signIn function:', error);
+    return { user: null, error };
+  }
+};
 
   // Sign up new user
   const signUp = async (email, password, metadata) => {

@@ -9,16 +9,16 @@ export default function ProtectedRoute({ children }) {
   const [isVerifying, setIsVerifying] = useState(true);
 
   useEffect(() => {
-    // Attendiamo che l'auth sia caricata
-    if (!loading) {
-      if (!user) {
-        // Se non c'è un utente, reindirizza alla pagina di login
-        console.log('No user found, redirecting to login');
-        router.push('/auth/signin');
-      } else {
-        // Utente verificato, non è più necessario verificare
-        setIsVerifying(false);
-      }
+    // Aggiungi questo controllo per evitare redirezioni durante il caricamento
+    if (loading) return;
+    
+    if (!user) {
+      // Se non c'è un utente, reindirizza alla pagina di login
+      console.log('No user found, redirecting to login');
+      router.push('/auth/signin');
+    } else {
+      // Utente verificato, non è più necessario verificare
+      setIsVerifying(false);
     }
   }, [user, loading, router]);
 
