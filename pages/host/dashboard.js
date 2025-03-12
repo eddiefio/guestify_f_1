@@ -16,33 +16,75 @@ function Dashboard() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!user) return;
+    let isMounted = true;
+    let fetchTimeout;
 
     async function fetchProperties() {
       try {
-        setLoading(true);
+        if (!user) {
+          if (isMounted) {
+            // Set empty properties if no user (avoid showing spinner indefinitely)
+            setProperties([]);
+            setLoading(false);
+          }
+          return;
+        }
+
+        // Set a timeout to ensure we don't get stuck loading
+        fetchTimeout = setTimeout(() => {
+          if (isMounted && loading) {
+            console.warn('Properties fetch timeout - forcing completion');
+            setLoading(false);
+            setError('Data loading timed out. Please refresh the page.');
+          }
+        }, 10000); // 10 seconds timeout
+
+        console.log('Fetching properties for user:', user.id);
         const { data, error } = await supabase
           .from('apartments')
           .select('*')
           .eq('host_id', user.id);
 
-        if (error) throw error;
-        setProperties(data || []);
+        if (error) {
+          console.error('Supabase error:', error);
+          throw error;
+        }
+
+        console.log('Fetched properties:', data ? data.length : 0);
+        
+        if (isMounted) {
+          setProperties(data || []);
+          setLoading(false);
+        }
       } catch (err) {
         console.error('Error fetching properties:', err);
-        setError('Failed to load properties');
-      } finally {
-        setLoading(false);
+        if (isMounted) {
+          setError('Failed to load properties: ' + (err.message || 'Unknown error'));
+          setLoading(false);
+        }
       }
     }
 
-    fetchProperties();
-  }, [user]);
+    // Only fetch if we're in a loading state
+    if (loading) {
+      fetchProperties();
+    }
+
+    return () => {
+      isMounted = false;
+      clearTimeout(fetchTimeout);
+    };
+  }, [user, loading]);
 
   // Filter properties based on search term
   const filteredProperties = properties.filter(prop => 
     prop.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleRefresh = () => {
+    setLoading(true);
+    setError(null);
+  };
 
   return (
     <div>
@@ -64,10 +106,17 @@ function Dashboard() {
       {loading ? (
         <div className="text-center py-8">
           <i className="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
+          <p className="mt-2 text-sm text-gray-500">Loading your properties...</p>
         </div>
       ) : error ? (
-        <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
-          {error}
+        <div className="bg-red-100 text-red-700 p-4 rounded mb-4">
+          <p>{error}</p>
+          <button 
+            onClick={handleRefresh}
+            className="mt-2 bg-red-200 hover:bg-red-300 text-red-800 px-3 py-1 rounded text-sm"
+          >
+            Try Again
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" id="propertyGrid">
