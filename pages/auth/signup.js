@@ -1,9 +1,8 @@
-// pages/auth/signup.js
+// pages/auth/signup.js - Simplified version
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import AuthLayout from '../../components/layout/AuthLayout';
-import { useAuth } from '../../contexts/AuthContext';
 import { CountrySelect } from '../../components/layout/CountrySelect';
 import { supabase } from '../../lib/supabase';
 
@@ -16,16 +15,12 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
-  const [message, setMessage] = useState('');
   const router = useRouter();
-  const { signUp } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setSuccess(false);
-    setMessage('');
 
     if (!terms) {
       setError('You must accept the Terms and Conditions');
@@ -34,83 +29,56 @@ export default function SignUp() {
     }
 
     try {
-      // First create the user in supabase auth
-      const { data, error: authError } = await supabase.auth.signUp({
+      // Simple signup with minimal options
+      const { data, error } = await supabase.auth.signUp({
         email,
-        password,
-        options: {
-          data: { name, country }
-        }
+        password
       });
       
-      if (authError) {
-        if (authError.message.toLowerCase().includes('duplicate') || 
-            authError.message.toLowerCase().includes('already')) {
-          throw new Error('User already exists');
-        }
-        throw authError;
-      }
+      if (error) throw error;
       
-      // If email confirmation is required, show a message
-      if (data?.user && !data?.session) {
-        console.log('Email confirmation required');
-        setSuccess(true);
-        setMessage("Please check your email for a confirmation link before logging in.");
-        setLoading(false);
-        return;
-      }
+      // Show success message
+      setSuccess(true);
       
-      // If we got a session (email confirmation not required), create profile
-      if (data?.user) {
-        console.log('User created successfully:', data.user.id);
-        
-        try {
-          // Create profile manually
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert([{
-              id: data.user.id,
-              name: name,
-              country: country
-            }]);
-            
-          if (profileError) {
-            console.error('Profile creation error:', profileError);
-            // Continue anyway - the user was created
-          }
-        } catch (profileErr) {
-          console.error('Exception during profile creation:', profileErr);
-          // Continue anyway
-        }
-        
-        // Redirect to connect stripe page
-        router.push('/host/connect-stripe');
+      // Auto-redirect after a delay if session exists
+      if (data?.session) {
+        setTimeout(() => {
+          router.push('/host/dashboard');
+        }, 2000);
       }
     } catch (error) {
       console.error('Error signing up:', error);
       setError(error.message || 'Failed to sign up');
+    } finally {
       setLoading(false);
     }
   };
 
-  // If showing success message, display a different UI
+  // Success state UI
   if (success) {
     return (
-      <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10">
-        <div className="text-center">
-          <i className="fas fa-check-circle text-green-500 text-5xl mb-4"></i>
-          <h2 className="text-2xl font-bold mb-2">Check Your Email</h2>
-          <p className="text-gray-600 mb-6">{message}</p>
-          <Link href="/auth/signin">
-            <span className="bg-[#5e2bff] text-white px-6 py-2 rounded-full hover:bg-opacity-90 transition cursor-pointer">
-              Return to Sign In
-            </span>
-          </Link>
-        </div>
+      <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10 text-center">
+        <i className="fas fa-check-circle text-green-500 text-5xl mb-4"></i>
+        <h2 className="text-2xl font-bold mb-4">Account Created!</h2>
+        <p className="mb-6">
+          Your account has been created successfully. You may need to verify your email before signing in.
+        </p>
+        <Link href="/auth/signin">
+          <span className="bg-black text-white py-2 px-6 rounded hover:bg-gray-800 transition font-semibold cursor-pointer">
+            Go to Sign In
+          </span>
+        </Link>
       </div>
     );
   }
 
+  // Form UI - rest of your component code...
+  // (Keep your existing UI code here)
+}
+
+SignUp.getLayout = function getLayout(page) {
+  return <AuthLayout title="Sign Up - Guestify">{page}</AuthLayout>;
+};
   return (
     <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10">
       <h2 className="text-2xl font-bold mb-2">Create an account</h2>
