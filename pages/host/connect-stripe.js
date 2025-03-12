@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 export default function ConnectStripe() {
   const [loading, setLoading] = useState(false);
@@ -13,20 +14,30 @@ export default function ConnectStripe() {
   const handleConnect = async () => {
     setLoading(true);
     setError(null);
-
+  
     try {
+      // Ottieni esplicitamente il token di sessione
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+  
+      if (!token) {
+        throw new Error('No authentication token available. Please log in again.');
+      }
+  
       const response = await fetch('/api/stripe/connect', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`  // Aggiungi il token nell'header
         },
         body: JSON.stringify({ userId: user?.id }),
+        credentials: 'include'  // Includi i cookies nella richiesta
       });
-
+  
       const data = await response.json();
-
+  
       if (!response.ok) throw new Error(data.error || 'Failed to connect with Stripe');
-
+  
       // Redirect to Stripe onboarding
       if (data.url) {
         window.location.href = data.url;
