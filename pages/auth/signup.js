@@ -71,14 +71,7 @@ export default function SignUp() {
       </div>
     );
   }
-
-  // Form UI - rest of your component code...
-  // (Keep your existing UI code here)
-}
-
-SignUp.getLayout = function getLayout(page) {
-  return <AuthLayout title="Sign Up - Guestify">{page}</AuthLayout>;
-};
+  
   return (
     <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10">
       <h2 className="text-2xl font-bold mb-2">Create an account</h2>
@@ -172,7 +165,7 @@ SignUp.getLayout = function getLayout(page) {
       </div>
     </div>
   );
-
+}
 
 SignUp.getLayout = function getLayout(page) {
   return <AuthLayout title="Sign Up - Guestify">{page}</AuthLayout>;
