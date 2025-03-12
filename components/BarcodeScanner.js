@@ -3,12 +3,12 @@ import { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 
 /**
- * Componente per la scansione di codici a barre utilizzando html5-qrcode
+ * Component for barcode scanning using html5-qrcode
  * 
- * @param {Object} props - Le props del componente
- * @param {function} props.onDetected - Callback chiamato quando un barcode viene rilevato
- * @param {boolean} props.isScanning - Se il componente deve iniziare la scansione
- * @param {function} props.onError - Callback chiamato in caso di errore
+ * @param {Object} props - Component props
+ * @param {function} props.onDetected - Callback called when a barcode is detected
+ * @param {boolean} props.isScanning - Whether the component should start scanning
+ * @param {function} props.onError - Callback called on error
  */
 export default function BarcodeScanner({ onDetected, isScanning, onError }) {
   const [error, setError] = useState(null);
@@ -18,44 +18,48 @@ export default function BarcodeScanner({ onDetected, isScanning, onError }) {
   useEffect(() => {
     let scanner = null;
 
-    // Configurazione dello scanner
+    // Scanner configuration
     const config = {
       fps: 10,
       qrbox: { width: 250, height: 150 },
       formatsToSupport: [
-        Html5Qrcode.FORMATS.EAN_13,  // Formato comune per prodotti commerciali
-        Html5Qrcode.FORMATS.EAN_8,    // Versione corta dell'EAN
-        Html5Qrcode.FORMATS.UPC_A,    // Codici universali per prodotti
-        Html5Qrcode.FORMATS.UPC_E,    // Versione corta dell'UPC
-        Html5Qrcode.FORMATS.CODE_39,  // Codice 39, usato in vari settori
-        Html5Qrcode.FORMATS.CODE_93,  // Codice 93
-        Html5Qrcode.FORMATS.CODE_128  // Codice 128, molto versatile
+        Html5Qrcode.FORMATS.EAN_13,  // Common format for commercial products
+        Html5Qrcode.FORMATS.EAN_8,    // Short version of EAN
+        Html5Qrcode.FORMATS.UPC_A,    // Universal product codes
+        Html5Qrcode.FORMATS.UPC_E,    // Short version of UPC
+        Html5Qrcode.FORMATS.CODE_39,  // Code 39, used in various sectors
+        Html5Qrcode.FORMATS.CODE_93,  // Code 93
+        Html5Qrcode.FORMATS.CODE_128  // Code 128, very versatile
       ],
       aspectRatio: 1.0,
       showTorchButtonIfSupported: true,
-      showZoomSliderIfSupported: true
+      showZoomSliderIfSupported: true,
+      // Add this to prevent using eval
+      experimentalFeatures: {
+        useBarCodeDetectorIfSupported: true
+      }
     };
 
     const startScanner = async () => {
       try {
-        // Assicuriamoci che il container sia vuoto prima di inizializzare
+        // Make sure the container is empty before initializing
         if (containerRef.current) {
           containerRef.current.innerHTML = '';
           
-          // Creiamo un elemento per lo scanner
+          // Create scanner element
           const scannerElement = document.createElement('div');
           scannerElement.id = 'html5qr-code-full-region';
           containerRef.current.appendChild(scannerElement);
           
-          // Inizializziamo lo scanner
-          scanner = new Html5Qrcode('html5qr-code-full-region');
+          // Initialize scanner with CSP-friendly options
+          scanner = new Html5Qrcode('html5qr-code-full-region', { formatsToSupport: config.formatsToSupport });
           scannerRef.current = scanner;
           
-          // Quando viene rilevato un codice
+          // When a code is detected
           const onScanSuccess = (decodedText, decodedResult) => {
             console.log(`Barcode detected: ${decodedText}`, decodedResult);
             
-            // Fermiamo lo scanner e chiamiamo il callback
+            // Stop scanner and call callback
             if (scanner) {
               scanner.stop().then(() => {
                 onDetected(decodedText);
@@ -65,15 +69,15 @@ export default function BarcodeScanner({ onDetected, isScanning, onError }) {
             }
           };
           
-          // Quando si verifica un errore durante la scansione
+          // When scan fails
           const onScanFailure = (error) => {
-            // Non facciamo nulla, è normale avere errori quando non c'è un codice a barre nel frame
+            // Do nothing, it's normal to have errors when no barcode is in frame
             // console.warn(`Scan error: ${error}`);
           };
           
-          // Avviamo lo scanner usando la fotocamera
+          // Start scanner using camera
           await scanner.start(
-            { facingMode: "environment" }, // Preferisci la fotocamera posteriore
+            { facingMode: "environment" }, // Prefer back camera
             config,
             onScanSuccess,
             onScanFailure
@@ -92,7 +96,7 @@ export default function BarcodeScanner({ onDetected, isScanning, onError }) {
           await scannerRef.current.stop();
           scannerRef.current = null;
           
-          // Puliamo il container
+          // Clean container
           if (containerRef.current) {
             containerRef.current.innerHTML = '';
           }
@@ -102,14 +106,14 @@ export default function BarcodeScanner({ onDetected, isScanning, onError }) {
       }
     };
 
-    // Avvia o ferma lo scanner in base a isScanning
+    // Start or stop scanner based on isScanning
     if (isScanning) {
       startScanner();
     } else {
       stopScanner();
     }
 
-    // Pulizia quando il componente viene smontato
+    // Cleanup when component unmounts
     return () => {
       stopScanner();
     };
@@ -128,7 +132,7 @@ export default function BarcodeScanner({ onDetected, isScanning, onError }) {
         className="w-full bg-black relative rounded overflow-hidden" 
         style={{ minHeight: '300px' }}
       >
-        {/* Il contenuto dello scanner verrà inserito qui dinamicamente dalla libreria */}
+        {/* Scanner content will be dynamically inserted here by the library */}
       </div>
       
       <p className="text-xs text-gray-500 mt-2 text-center">

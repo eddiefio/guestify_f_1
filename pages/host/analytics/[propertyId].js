@@ -244,26 +244,40 @@ export default function Analytics() {
             </div>
           </div>
 
-          {/* Sales Chart */}
-          {salesData.length > 0 && (
-            <div className="bg-white p-4 rounded-lg shadow-md mb-8">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">
-                Monthly Sales Overview
-              </h3>
-              <div className="h-64 mt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={salesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => `€${value.toFixed(2)}`} />
-                    <Legend />
-                    <Bar dataKey="sales" name="Sales (€)" fill="#8884d8" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          )}
+        // Modified chart implementation in pages/host/analytics/[propertyId].js
+// Replace the chart section with this simpler implementation:
+
+{/* Sales Chart - Modified to avoid potential eval usage */}
+{salesData.length > 0 && (
+  <div className="bg-white p-4 rounded-lg shadow-md mb-8">
+    <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">
+      Monthly Sales Overview
+    </h3>
+    <div className="h-64 mt-4">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart 
+          data={salesData} 
+          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="month" />
+          <YAxis />
+          <Tooltip 
+            formatter={(value) => [`€${value.toFixed(2)}`, 'Sales']} 
+            contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc' }}
+          />
+          <Legend />
+          <Bar 
+            dataKey="sales" 
+            name="Sales (€)" 
+            fill="#8884d8" 
+            isAnimationActive={false} // Disable animations to avoid complex JS evaluation
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  </div>
+)}
 
           {/* Performance Insights Card */}
           <div className="bg-white p-4 rounded-lg shadow-md">
