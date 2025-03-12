@@ -4,12 +4,15 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import AuthLayout from '../../components/layout/AuthLayout';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 export default function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [message, setMessage] = useState(null);
+  const [resendingEmail, setResendingEmail] = useState(false);
   const router = useRouter();
   const { signIn, user } = useAuth();
 
@@ -23,6 +26,7 @@ export default function SignIn() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setMessage(null);
 
     try {
       console.log('Attempting login with:', email);
@@ -51,8 +55,42 @@ export default function SignIn() {
       }
     } catch (error) {
       console.error('Error in handleSubmit:', error);
-      setError(error.message || 'Failed to sign in');
+      
+      // Check if error is about email confirmation
+      if (error.message && error.message.toLowerCase().includes('email not confirmed')) {
+        setError('Please confirm your email address before signing in. Check your inbox for a confirmation link.');
+      } else {
+        setError(error.message || 'Failed to sign in');
+      }
+      
       setLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!email) {
+      setError('Please enter your email address first');
+      return;
+    }
+    
+    setResendingEmail(true);
+    setError(null);
+    setMessage(null);
+    
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+      });
+      
+      if (error) throw error;
+      
+      setMessage('Confirmation email has been resent. Please check your inbox.');
+    } catch (error) {
+      console.error('Error resending confirmation email:', error);
+      setError(`Failed to resend confirmation email: ${error.message}`);
+    } finally {
+      setResendingEmail(false);
     }
   };
 
@@ -66,6 +104,12 @@ export default function SignIn() {
       {error && (
         <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
           {error}
+        </div>
+      )}
+
+      {message && (
+        <div className="bg-green-100 text-green-700 p-3 rounded mb-4">
+          {message}
         </div>
       )}
 
@@ -108,6 +152,17 @@ export default function SignIn() {
         >
           {loading ? 'Signing in...' : 'Sign in'}
         </button>
+        
+        {error && error.toLowerCase().includes('email not confirmed') && (
+          <button
+            type="button"
+            onClick={handleResendConfirmation}
+            disabled={resendingEmail}
+            className="w-full mt-2 bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition"
+          >
+            {resendingEmail ? 'Sending...' : 'Resend Confirmation Email'}
+          </button>
+        )}
       </form>
 
       <div className="mt-4 text-center text-sm">
