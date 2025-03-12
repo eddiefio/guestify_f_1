@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Layout from '../../../components/layout/Layout';
 import { CountrySelect } from '../../../components/layout/CountrySelect';
 import { supabase } from '../../../lib/supabase';
+import ProtectedRoute from '../../../components/ProtectedRoute';
 
 export default function EditProperty() {
   const [formData, setFormData] = useState({
@@ -55,6 +56,7 @@ export default function EditProperty() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    console.log(`Field ${name} changed to ${value}`);
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -66,6 +68,7 @@ export default function EditProperty() {
     setSaving(true);
     
     try {
+      console.log('Submitting updated form data:', formData);
       const { error } = await supabase
         .from('apartments')
         .update({
@@ -175,18 +178,23 @@ export default function EditProperty() {
             className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
+          {/* Aggiunto un indicatore di debug per verificare che il paese sia stato selezionato */}
+          {formData.country && (
+            <p className="text-xs text-green-600 mt-1">Selected: {formData.country}</p>
+          )}
         </div>
         
-        <div className="flex space-x-4">
+        {/* Container dei bottoni corretto */}
+        <div className="flex justify-end space-x-4">
           <Link href="/host/dashboard">
-            <span className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition cursor-pointer">
+            <span className="inline-block px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition cursor-pointer">
               Cancel
             </span>
           </Link>
           <button
             type="submit"
             disabled={saving}
-            className="px-4 py-2 bg-[#fad02f] text-black rounded hover:opacity-90 transition font-semibold"
+            className="inline-block px-4 py-2 bg-[#fad02f] text-black rounded hover:opacity-90 transition font-semibold"
           >
             {saving ? 'Saving...' : 'Save Changes'}
           </button>
@@ -197,5 +205,9 @@ export default function EditProperty() {
 }
 
 EditProperty.getLayout = function getLayout(page) {
-  return <Layout title="Edit Property - Guestify">{page}</Layout>;
+  return (
+    <Layout title="Edit Property - Guestify">
+      <ProtectedRoute>{page}</ProtectedRoute>
+    </Layout>
+  );
 };

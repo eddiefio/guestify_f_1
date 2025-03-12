@@ -6,6 +6,7 @@ import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { CountrySelect } from '../../components/layout/CountrySelect';
+import ProtectedRoute from '../../components/ProtectedRoute';
 
 export default function AddProperty() {
   const [formData, setFormData] = useState({
@@ -23,10 +24,11 @@ export default function AddProperty() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
+    console.log(`Field ${name} changed to ${value}`);
+    setFormData(prevData => ({
+      ...prevData,
       [name]: value,
-    });
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -37,10 +39,17 @@ export default function AddProperty() {
       return;
     }
     
+    // Validazione del form
+    if (!formData.country) {
+      setError('Please select a country');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     
     try {
+      console.log('Submitting form data:', formData);
       const { data, error } = await supabase
         .from('apartments')
         .insert([
@@ -59,6 +68,7 @@ export default function AddProperty() {
         
       if (error) throw error;
       
+      console.log('Property created successfully:', data);
       // Redirect to dashboard on success
       router.push('/host/dashboard');
     } catch (error) {
@@ -98,12 +108,16 @@ export default function AddProperty() {
           <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1">Select Country</label>
           <CountrySelect
             id="country"
-            name="country"
+            name="country" 
             value={formData.country}
             onChange={handleChange}
             className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
+          {/* Aggiunto un indicatore di debug per verificare che il paese sia stato selezionato */}
+          {formData.country && (
+            <p className="text-xs text-green-600 mt-1">Selected: {formData.country}</p>
+          )}
         </div>
         
         <div>
@@ -159,15 +173,16 @@ export default function AddProperty() {
           />
         </div>
         
-        <div className="flex space-x-2">
+        {/* Container dei bottoni corretto */}
+        <div className="flex justify-end space-x-4">
           <Link href="/host/dashboard">
-            <span className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition cursor-pointer">
+            <span className="inline-block px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition cursor-pointer">
               Cancel
             </span>
           </Link>
           <button 
             type="submit" 
-            className="px-4 py-2 bg-[#fad02f] text-black rounded hover:opacity-90 transition font-semibold"
+            className="inline-block px-4 py-2 bg-[#fad02f] text-black rounded hover:opacity-90 transition font-semibold"
             disabled={loading}
           >
             {loading ? 'Saving...' : 'Save'}
@@ -179,5 +194,9 @@ export default function AddProperty() {
 }
 
 AddProperty.getLayout = function getLayout(page) {
-  return <Layout title="Add Property - Guestify">{page}</Layout>;
+  return (
+    <Layout title="Add Property - Guestify">
+      <ProtectedRoute>{page}</ProtectedRoute>
+    </Layout>
+  );
 };

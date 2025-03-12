@@ -1,4 +1,4 @@
-// components/CountrySelect.js
+// components/layout/CountrySelect.js
 import React from 'react';
 
 // List of countries for the dropdown
@@ -32,12 +32,26 @@ const countries = [
   "Vatican City", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"
 ];
 
-export function CountrySelect({ value, onChange, id, className, required }) {
+export function CountrySelect({ value, onChange, id, name, className, required }) {
+  // Gestione migliorata dell'evento onChange
+  const handleChange = (e) => {
+    // Crea un evento personalizzato mantenendo il nome
+    const customEvent = {
+      target: {
+        name: name || 'country', // Usa il nome passato o 'country' come fallback
+        value: e.target.value
+      }
+    };
+    
+    onChange(customEvent);
+  };
+
   return (
     <select
       id={id}
+      name={name || 'country'} // Assicura che il nome sia sempre presente
       value={value}
-      onChange={onChange}
+      onChange={handleChange}
       className={className}
       required={required}
     >
