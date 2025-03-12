@@ -1,9 +1,9 @@
-// pages/host/add-property.js
-import { useState } from 'react';
+// pages/host/add-property.js - Versione migliorata
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { supabase, fetchWithRetry } from '../../lib/supabase';
 import { CountrySelect } from '../../components/layout/CountrySelect';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import ButtonLayout from '../../components/ButtonLayout';
@@ -19,6 +19,7 @@ export default function AddProperty() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
   const router = useRouter();
   const { user } = useAuth();
 
@@ -50,34 +51,61 @@ export default function AddProperty() {
     
     try {
       console.log('Submitting form data:', formData);
-      const { data, error } = await supabase
-        .from('apartments')
-        .insert([
-          {
-            host_id: user.id,
-            name: formData.rental_name,
-            address: formData.address,
-            city: formData.city,
-            state: formData.state,
-            zip: formData.zip,
-            country: formData.country,
-          },
-        ])
-        .select()
-        .single();
-        
-      if (error) throw error;
+      
+      // Impostiamo un timeout per evitare blocchi infiniti
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timed out')), 10000);
+      });
+      
+      // Utilizziamo fetchWithRetry per gestire i tentativi di invio
+      const insertPromise = fetchWithRetry(async () => {
+        const { data, error } = await supabase
+          .from('apartments')
+          .insert([
+            {
+              host_id: user.id,
+              name: formData.rental_name,
+              address: formData.address,
+              city: formData.city,
+              state: formData.state,
+              zip: formData.zip,
+              country: formData.country,
+            },
+          ])
+          .select()
+          .single();
+          
+        if (error) throw error;
+        return data;
+      });
+      
+      // Race per gestire il timeout
+      const data = await Promise.race([insertPromise, timeoutPromise]);
       
       console.log('Property created successfully:', data);
-      // Redirect to dashboard on success
-      router.push('/host/dashboard');
+      setSuccess(true);
+      
+      // Redirect to dashboard after a brief delay
+      setTimeout(() => {
+        router.push('/host/dashboard');
+      }, 1000);
     } catch (error) {
       console.error('Error creating property:', error);
-      setError(error.message || 'Failed to create property');
-    } finally {
+      setError(error.message || 'Failed to create property. Please try again.');
       setLoading(false);
     }
   };
+
+  // Se siamo in uno stato di successo, mostriamo un messaggio invece che il form
+  if (success) {
+    return (
+      <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10">
+        <div className="bg-green-100 text-green-700 p-3 rounded mb-4">
+          Property added successfully! Redirecting to dashboard...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10">
@@ -101,6 +129,7 @@ export default function AddProperty() {
             className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Good Place"
             required
+            disabled={loading}
           />
         </div>
         
@@ -113,6 +142,7 @@ export default function AddProperty() {
             onChange={handleChange}
             className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
+            disabled={loading}
           />
           {/* Aggiunto un indicatore di debug per verificare che il paese sia stato selezionato */}
           {formData.country && (
@@ -131,6 +161,7 @@ export default function AddProperty() {
             className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Enter full address"
             required
+            disabled={loading}
           />
         </div>
         
@@ -144,6 +175,7 @@ export default function AddProperty() {
             onChange={handleChange}
             className="w-full border rounded px-3 py-2"
             placeholder="City"
+            disabled={loading}
           />
         </div>
         
@@ -157,6 +189,7 @@ export default function AddProperty() {
             onChange={handleChange}
             className="w-full border rounded px-3 py-2"
             placeholder="State"
+            disabled={loading}
           />
         </div>
         
@@ -170,6 +203,7 @@ export default function AddProperty() {
             onChange={handleChange}
             className="w-full border rounded px-3 py-2"
             placeholder="90210"
+            disabled={loading}
           />
         </div>
         
@@ -180,6 +214,22 @@ export default function AddProperty() {
           loading={loading}
           loadingText="Saving..."
         />
+        
+        {/* Pulsante di fallback in caso di problemi con ButtonLayout */}
+        {loading && (
+          <div className="text-center mt-2">
+            <button 
+              type="button" 
+              onClick={() => {
+                setLoading(false);
+                router.push('/host/dashboard');
+              }}
+              className="text-sm text-gray-500 underline"
+            >
+              Cancel and go back
+            </button>
+          </div>
+        )}
       </form>
     </div>
   );
