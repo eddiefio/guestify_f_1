@@ -9,30 +9,36 @@ export default function ConnectStripe() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [sessionData, setSessionData] = useState(null);
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const router = useRouter();
   const { user, profile } = useAuth();
 
-  // Check if user already has Stripe connected
+  // Check if user already has a Stripe account connected
   useEffect(() => {
-    if (!user || isRedirecting) return;
+    if (!user || !profile) return;
     
-    // If profile is loaded and has stripe_account_id
-    if (profile && profile.stripe_account_id) {
-      setIsRedirecting(true);
-      console.log('User already has Stripe connected, redirecting...');
+    // If the profile has a stripe_account_id, redirect to the return URL or dashboard
+    if (profile.stripe_account_id) {
+      console.log('User already has Stripe connected:', profile.stripe_account_id);
+      setRedirecting(true);
       
-      // Check if there's a returnUrl in the query parameters
+      // Get returnUrl from query parameters
       const { returnUrl } = router.query;
-      if (returnUrl) {
-        router.push(returnUrl);
-      } else {
-        router.push('/host/dashboard');
-      }
+      
+      // Redirect after a short delay
+      setTimeout(() => {
+        if (returnUrl) {
+          console.log('Redirecting to:', returnUrl);
+          router.push(returnUrl);
+        } else {
+          console.log('Redirecting to dashboard');
+          router.push('/host/dashboard');
+        }
+      }, 500);
     }
-  }, [profile, router, isRedirecting, user]);
+  }, [user, profile, router]);
 
-  // Get session data when the page loads
+  // Get the session data when the page loads
   useEffect(() => {
     const getSession = async () => {
       const { data, error } = await supabase.auth.getSession();
@@ -52,12 +58,7 @@ export default function ConnectStripe() {
     setError(null);
 
     try {
-      // Store the returnUrl in localStorage before making the API call
-      if (router.query.returnUrl) {
-        localStorage.setItem('stripe-connect-return-url', router.query.returnUrl);
-      }
-      
-      // Prima prova con l'endpoint normale
+      // First try with the normal endpoint
       let response = await fetch('/api/stripe/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -65,12 +66,12 @@ export default function ConnectStripe() {
           userId: user?.id,
           userEmail: user?.email,
           accessToken: sessionData?.access_token,
-          returnUrl: router.query.returnUrl // Pass the returnUrl to the API
+          returnUrl: router.query.returnUrl 
         }),
         credentials: 'include'
       });
 
-      // Se fallisce, prova con l'endpoint diretto
+      // If it fails, try with the direct endpoint
       if (!response.ok) {
         console.log("Regular endpoint failed, trying direct connect");
         response = await fetch('/api/stripe/direct-connect', {
@@ -90,6 +91,11 @@ export default function ConnectStripe() {
         throw new Error(data.error || 'Failed to connect with Stripe');
       }
 
+      // Store returnUrl in localStorage
+      if (router.query.returnUrl) {
+        localStorage.setItem('stripe_return_url', router.query.returnUrl);
+      }
+
       // Redirect to Stripe onboarding
       if (data.url) {
         window.location.href = data.url;
@@ -99,13 +105,14 @@ export default function ConnectStripe() {
     } catch (error) {
       console.error('Error connecting to Stripe:', error);
       setError(error.message || 'An error occurred connecting to Stripe');
-    } finally {
       setLoading(false);
     }
   };
 
   const handleSkip = () => {
+    // Get the returnUrl from query parameters
     const { returnUrl } = router.query;
+    
     if (returnUrl) {
       router.push(returnUrl);
     } else {
@@ -113,12 +120,12 @@ export default function ConnectStripe() {
     }
   };
 
-  // Render loading or the connect form
-  if (isRedirecting) {
+  // If redirecting, show a loading message
+  if (redirecting) {
     return (
       <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10 text-center">
         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-        <p className="mt-4">Redirecting...</p>
+        <p className="mt-4 text-gray-600">Stripe account already connected. Redirecting...</p>
       </div>
     );
   }

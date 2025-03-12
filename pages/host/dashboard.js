@@ -1,4 +1,4 @@
-// pages/host/dashboard.js - Versione corretta
+// pages/host/dashboard.js - Updated to handle Stripe redirects
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -12,8 +12,58 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const { user } = useAuth();
+  const [stripeRedirectComplete, setStripeRedirectComplete] = useState(false);
+  const { user, profile } = useAuth();
   const router = useRouter();
+
+  // Check for Stripe redirect
+  useEffect(() => {
+    // Check URL for Stripe redirect parameters
+    const queryParams = new URLSearchParams(window.location.search);
+    const isStripeRedirect = queryParams.has('setup_intent') || 
+                             queryParams.has('setup_intent_client_secret') || 
+                             window.location.pathname.includes('/stripe-callback');
+    
+    if (isStripeRedirect && user && !stripeRedirectComplete) {
+      console.log('Detected Stripe redirect, checking account ID');
+      
+      // If this is a Stripe redirect, check if the profile has a stripe_account_id
+      const checkStripeAccount = async () => {
+        try {
+          // Verify the latest profile data from the database
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('stripe_account_id')
+            .eq('id', user.id)
+            .single();
+            
+          if (error) throw error;
+          
+          if (data && data.stripe_account_id) {
+            console.log('Stripe account is connected:', data.stripe_account_id);
+            
+            // Get the return URL from localStorage
+            const returnUrl = localStorage.getItem('stripe_return_url');
+            if (returnUrl) {
+              localStorage.removeItem('stripe_return_url');
+              console.log('Redirecting to:', returnUrl);
+              router.push(returnUrl);
+              return;
+            }
+          } else {
+            console.log('No Stripe account ID found in profile');
+          }
+          
+          setStripeRedirectComplete(true);
+        } catch (err) {
+          console.error('Error checking Stripe account:', err);
+          setStripeRedirectComplete(true);
+        }
+      };
+      
+      checkStripeAccount();
+    }
+  }, [user, router, stripeRedirectComplete]);
 
   useEffect(() => {
     let isMounted = true;
@@ -21,7 +71,7 @@ function Dashboard() {
 
     async function fetchProperties() {
       try {
-        // Verifico esplicitamente se l'utente è disponibile
+        // Verify explicitly if the user is available
         if (!user || !user.id) {
           if (isMounted) {
             console.log('No valid user found in dashboard, not fetching properties');
@@ -64,14 +114,14 @@ function Dashboard() {
           setLoading(false);
         }
       } finally {
-        // Assicuriamoci sempre di eliminare il timeout
+        // Always make sure to clear the timeout
         if (fetchTimeout) {
           clearTimeout(fetchTimeout);
         }
       }
     }
 
-    // Inizia il fetch dei dati solo se c'è un utente valido e siamo in stato di caricamento
+    // Start fetching data only if there is a valid user and we are in loading state
     if (loading) {
       fetchProperties();
     }

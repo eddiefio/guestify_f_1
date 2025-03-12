@@ -22,13 +22,13 @@ export default function PrintQR() {
   const { propertyId } = router.query;
   const { user, profile } = useAuth();
 
-  
   useEffect(() => {
     if (!propertyId || !user) return;
   
     // Check if user has connected Stripe
-    if (!profile?.stripe_account_id) {
-      // Reindirizza alla pagina Connect Stripe con un parametro di ritorno
+    if (profile && !profile.stripe_account_id) {
+      console.log('No Stripe account found, redirecting to connect-stripe');
+      // Redirect to the connect Stripe page with the current URL as the return URL
       router.push(`/host/connect-stripe?returnUrl=/host/printqr/${propertyId}`);
       return;
     }
