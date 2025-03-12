@@ -11,21 +11,35 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  // Funzione per ottenere il profilo utente
+  const fetchUserProfile = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     // Setup auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
+        
         if (session?.user) {
           setUser(session.user);
           
           // Fetch user profile from profiles table
-          const { data } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          
-          setProfile(data || null);
+          const profileData = await fetchUserProfile(session.user.id);
+          setProfile(profileData);
         } else {
           setUser(null);
           setProfile(null);
@@ -36,22 +50,24 @@ export function AuthProvider({ children }) {
 
     // Get initial session
     const initializeAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        setUser(session.user);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
         
-        // Fetch user profile
-        const { data } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        
-        setProfile(data || null);
+        if (session?.user) {
+          console.log('Found existing session for user:', session.user.id);
+          setUser(session.user);
+          
+          // Fetch user profile
+          const profileData = await fetchUserProfile(session.user.id);
+          setProfile(profileData);
+        } else {
+          console.log('No session found');
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
 
     initializeAuth();
@@ -62,40 +78,39 @@ export function AuthProvider({ children }) {
   }, []);
 
   // Sign in with email and password
-
-const signIn = async (email, password) => {
-  try {
-    // Prima facciamo un sign out per pulire eventuali sessioni parziali
-    await supabase.auth.signOut();
-    
-    // Poi eseguiamo il login
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    
-    if (error) throw error;
-    
-    // Se abbiamo una sessione, aggiorniamo lo stato utente
-    if (data.user) {
-      setUser(data.user);
+  const signIn = async (email, password) => {
+    try {
+      console.log('Signing in user:', email);
       
-      // Fetch user profile
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
+      // Clear any existing session
+      await supabase.auth.signOut();
       
-      setProfile(profileData || null);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) {
+        console.error('Sign in error:', error);
+        throw error;
+      }
+      
+      console.log('Sign in successful:', data.user?.id);
+      
+      if (data.user) {
+        setUser(data.user);
+        
+        // Get profile
+        const profileData = await fetchUserProfile(data.user.id);
+        setProfile(profileData);
+      }
+      
+      return { user: data.user, error: null };
+    } catch (error) {
+      console.error('Error in signIn function:', error);
+      return { user: null, error };
     }
-    
-    return { user: data.user, error: null };
-  } catch (error) {
-    console.error('Login error:', error);
-    return { user: null, error };
-  }
-};
+  };
 
   // Sign up new user
   const signUp = async (email, password, metadata) => {
@@ -116,6 +131,10 @@ const signIn = async (email, password) => {
             ...metadata
           }
         ]);
+        
+        // Set user immediately after signup
+        setUser(data.user);
+        setProfile(metadata);
       }
       
       return { user: data.user, error: null };
@@ -126,8 +145,14 @@ const signIn = async (email, password) => {
 
   // Sign out
   const signOut = async () => {
-    await supabase.auth.signOut();
-    router.push('/auth/signin');
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setProfile(null);
+      router.push('/auth/signin');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   // Reset password
@@ -160,6 +185,10 @@ const signIn = async (email, password) => {
 
   // Update profile
   const updateProfile = async (updates) => {
+    if (!user) {
+      return { profile: null, error: new Error('User not authenticated') };
+    }
+    
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -168,11 +197,18 @@ const signIn = async (email, password) => {
       
       if (error) throw error;
       
-      setProfile({ ...profile, ...updates });
+      // Update local profile state
+      setProfile(prev => ({ ...prev, ...updates }));
+      
       return { profile: data, error: null };
     } catch (error) {
       return { profile: null, error };
     }
+  };
+
+  // Check if user is authenticated
+  const isAuthenticated = () => {
+    return !!user;
   };
 
   const value = {
@@ -184,7 +220,8 @@ const signIn = async (email, password) => {
     signOut,
     resetPassword,
     updatePassword,
-    updateProfile
+    updateProfile,
+    isAuthenticated
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

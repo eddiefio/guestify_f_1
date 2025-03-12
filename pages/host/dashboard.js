@@ -5,8 +5,9 @@ import { useRouter } from 'next/router';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import ProtectedRoute from '../../components/ProtectedRoute';
 
-export default function Dashboard() {
+function Dashboard() {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -138,6 +139,13 @@ export default function Dashboard() {
   );
 }
 
+// Wrap the component with ProtectedRoute
 Dashboard.getLayout = function getLayout(page) {
-  return <Layout title="Dashboard - Guestify">{page}</Layout>;
+  return (
+    <Layout title="Dashboard - Guestify">
+      <ProtectedRoute>{page}</ProtectedRoute>
+    </Layout>
+  );
 };
+
+export default Dashboard;

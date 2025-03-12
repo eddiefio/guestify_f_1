@@ -11,32 +11,46 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { signIn, user } = useAuth();
+
+  // Se l'utente è già autenticato, redirect alla dashboard
+  if (user) {
+    router.push('/host/dashboard');
+    return null;
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-  
+
     try {
+      console.log('Attempting login with:', email);
       const { user, error } = await signIn(email, password);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Login error:', error);
+        throw error;
+      }
       
       if (user) {
-        // Attendiamo che la sessione sia completata prima di navigare
-        console.log('Login successful, navigating to dashboard...');
+        console.log('Login successful, user:', user.id);
         
-        // Impostiamo un flag nel localStorage per indicare che siamo appena loggati
-        localStorage.setItem('just_authenticated', 'true');
+        // Memorizza l'ultimo login riuscito
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('lastLoginSuccess', new Date().toISOString());
+        }
         
-        // Navigazione con ritardo per dare tempo alla sessione di stabilirsi
+        // Redirect con un breve ritardo
         setTimeout(() => {
+          console.log('Redirecting to dashboard...');
           router.push('/host/dashboard');
-        }, 1000);
+        }, 800);
+      } else {
+        throw new Error('No user returned from login');
       }
     } catch (error) {
-      console.error('Error signing in:', error);
+      console.error('Error in handleSubmit:', error);
       setError(error.message || 'Failed to sign in');
       setLoading(false);
     }
