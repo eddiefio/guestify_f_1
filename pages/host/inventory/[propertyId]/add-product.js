@@ -6,6 +6,7 @@ import Layout from '../../../../components/layout/Layout';
 import { supabase } from '../../../../lib/supabase';
 import ProtectedRoute from '../../../../components/ProtectedRoute';
 import ButtonLayout from '../../../../components/ButtonLayout';
+import BarcodeScanner from '../../../../components/BarcodeScanner';
 
 export default function AddProduct() {
   const [formData, setFormData] = useState({
@@ -23,6 +24,7 @@ export default function AddProduct() {
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [productFound, setProductFound] = useState(false); // Flag per indicare se un prodotto è stato trovato
   const router = useRouter();
   const { propertyId } = router.query;
 
@@ -36,38 +38,69 @@ export default function AddProduct() {
   const fetchProductByBarcode = async (barcode) => {
     try {
       setLoading(true);
+      console.log(`Searching for product with barcode: ${barcode}`);
       
       // Check if product with this barcode already exists
-      const { data, error } = await supabase
+      const { data: product, error: productError } = await supabase
         .from('products')
         .select('*')
         .eq('barcode', barcode)
         .single();
         
-      if (error && error.code !== 'PGRST116') {
-        throw error;
+      if (productError && productError.code !== 'PGRST116') {
+        throw productError;
       }
       
       // If product exists, prefill the form
-      if (data) {
+      if (product) {
+        console.log('Product found:', product);
+        setProductFound(true);
+        
+        // Cerca se questo prodotto è già nell'inventario di questa proprietà
+        const { data: inventoryItem, error: inventoryError } = await supabase
+          .from('inventory')
+          .select('*')
+          .eq('product_id', product.id)
+          .eq('apartment_id', propertyId)
+          .maybeSingle();
+        
+        if (inventoryError && inventoryError.code !== 'PGRST116') {
+          console.error('Error checking inventory:', inventoryError);
+        }
+        
+        // Compila il form con i dati del prodotto
         setFormData({
-          ...formData,
-          barcode: data.barcode || '',
-          name: data.name || '',
-          description: data.description || '',
-          category: data.category || 'Food and Drinks',
-          image_url: data.image_url || '',
+          barcode: product.barcode || '',
+          name: product.name || '',
+          description: product.description || '',
+          category: product.category || 'Food and Drinks',
+          image_url: product.image_url || '',
+          // Se il prodotto è già nell'inventario, usa il suo prezzo, altrimenti lascia vuoto
+          price: inventoryItem ? inventoryItem.price : '',
+          // Lascia sempre la quantità impostata a 1 per prodotti nuovi
+          quantity: '1',
         });
         
-        if (data.image_url) {
-          setPreview(data.image_url);
+        if (product.image_url) {
+          setPreview(product.image_url);
+        }
+        
+        // Mostra un messaggio all'utente
+        if (inventoryItem) {
+          setError(`This product is already in your inventory with quantity ${inventoryItem.quantity}. You can add more.`);
+        } else {
+          setSuccess('Product found in database! Details loaded. Enter quantity and price to add to inventory.');
+          // Dopo 3 secondi, nasconde il messaggio di successo
+          setTimeout(() => setSuccess(false), 3000);
         }
       } else {
+        console.log('Product not found, only setting barcode');
         // Just set the barcode
-        setFormData({
-          ...formData,
+        setFormData(prev => ({
+          ...prev,
           barcode,
-        });
+        }));
+        setProductFound(false);
       }
     } catch (err) {
       console.error('Error fetching product by barcode:', err);
@@ -180,7 +213,7 @@ export default function AddProduct() {
       // Check if this product is already in the property's inventory
       const { data: existingInventory, error: inventoryError } = await supabase
         .from('inventory')
-        .select('id')
+        .select('id, quantity')
         .eq('apartment_id', propertyId)
         .eq('product_id', productId)
         .maybeSingle();
@@ -190,11 +223,13 @@ export default function AddProduct() {
       }
       
       if (existingInventory) {
-        // Update inventory
+        // Update inventory - increase quantity
+        const newQuantity = existingInventory.quantity + parseInt(formData.quantity);
+        
         const { error } = await supabase
           .from('inventory')
           .update({
-            quantity: parseInt(formData.quantity),
+            quantity: newQuantity,
             price: parseFloat(formData.price),
           })
           .eq('id', existingInventory.id);
@@ -229,10 +264,22 @@ export default function AddProduct() {
     }
   };
 
+  const handleBarcodeDetected = (barcode) => {
+    console.log('Barcode detected:', barcode);
+    setScanning(false); // Ferma la scansione
+    
+    // Imposta il barcode nel form
+    setFormData(prev => ({
+      ...prev,
+      barcode: barcode,
+    }));
+    
+    // Cerca informazioni sul prodotto
+    fetchProductByBarcode(barcode);
+  };
+
   const startBarcodeScanner = () => {
     setScanning(true);
-    // Note: In a real app, you would integrate a barcode scanning library
-    // For now, we'll simulate scanning with a mock dialog
   };
 
   const stopBarcodeScanner = () => {
@@ -258,7 +305,13 @@ export default function AddProduct() {
 
       {success && (
         <div className="bg-green-100 text-green-700 p-3 rounded mb-4">
-          Product added successfully! Redirecting...
+          {typeof success === 'string' ? success : 'Product added successfully! Redirecting...'}
+        </div>
+      )}
+
+      {productFound && (
+        <div className="bg-blue-100 text-blue-700 p-3 rounded mb-4">
+          Product found in database! Fields have been auto-filled.
         </div>
       )}
 
@@ -286,12 +339,12 @@ export default function AddProduct() {
         </div>
 
         {scanning && (
-          <div className="mb-4 bg-black text-center p-4 rounded relative">
-            <div className="text-white mb-2">Point camera at barcode</div>
-            <div className="bg-white w-full h-40 flex items-center justify-center">
-              <span className="text-gray-500">Camera preview would appear here</span>
-            </div>
-            <div className="border-2 border-white absolute inset-0 m-8 pointer-events-none"></div>
+          <div className="mb-4 rounded relative">
+            <BarcodeScanner 
+              isScanning={scanning} 
+              onDetected={handleBarcodeDetected} 
+              onError={(err) => setError(`Camera error: ${err.message}`)}
+            />
           </div>
         )}
 
