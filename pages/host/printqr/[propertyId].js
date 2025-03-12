@@ -1,4 +1,4 @@
-// pages/host/printqr/[propertyId].js
+// pages/host/printqr/[propertyId].js - Simple check
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
@@ -17,26 +17,35 @@ export default function PrintQR() {
   const [error, setError] = useState(null);
   const [printingStatus, setPrintingStatus] = useState('idle'); // 'idle', 'preparing', 'ready', 'error'
   const [downloadUrl, setDownloadUrl] = useState('');
+  const [isCheckingStripe, setIsCheckingStripe] = useState(true);
   const qrRef = useRef(null);
   const router = useRouter();
   const { propertyId } = router.query;
   const { user, profile } = useAuth();
 
   useEffect(() => {
-    if (!propertyId || !user) return;
-  
+    // We need both user and profile to be loaded and router to be ready
+    if (!user || !profile || !router.isReady) return;
+
+    console.log("PrintQR - Checking Stripe account");
+    console.log("Profile:", profile);
+    
     // Check if user has connected Stripe
-    if (profile && !profile.stripe_account_id) {
+    if (!profile.stripe_account_id) {
       console.log('No Stripe account found, redirecting to connect-stripe');
-      // Redirect to the connect Stripe page with the current URL as the return URL
-      router.push(`/host/connect-stripe?returnUrl=/host/printqr/${propertyId}`);
+      setIsCheckingStripe(false);
+      
+      // Store current page as return URL
+      const returnUrl = `/host/printqr/${propertyId}`;
+      router.push(`/host/connect-stripe?returnUrl=${encodeURIComponent(returnUrl)}`);
       return;
     }
-
-    async function fetchData() {
+    
+    // User has Stripe, continue with loading data
+    setIsCheckingStripe(false);
+    
+    const fetchData = async () => {
       try {
-        setLoading(true);
-        
         // Fetch property details
         const { data: property, error: propError } = await supabase
           .from('apartments')
@@ -69,7 +78,7 @@ export default function PrintQR() {
       } finally {
         setLoading(false);
       }
-    }
+    };
 
     fetchData();
   }, [propertyId, user, profile, router]);
@@ -128,6 +137,16 @@ export default function PrintQR() {
       }, 250);
     }
   };
+
+  // Show loading while checking Stripe status
+  if (isCheckingStripe) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+        <p className="ml-3">Checking account status...</p>
+      </div>
+    );
+  }
 
   return (
     <div>
