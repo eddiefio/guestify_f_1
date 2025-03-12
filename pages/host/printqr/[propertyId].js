@@ -22,9 +22,10 @@ export default function PrintQR() {
   const { propertyId } = router.query;
   const { user, profile } = useAuth();
 
+  
   useEffect(() => {
     if (!propertyId || !user) return;
-
+  
     // Check if user has connected Stripe
     if (!profile?.stripe_account_id) {
       // Reindirizza alla pagina Connect Stripe con un parametro di ritorno

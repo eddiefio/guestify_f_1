@@ -1,4 +1,4 @@
-// contexts/AuthContext.js - Versione ottimizzata con controllo Stripe
+// contexts/AuthContext.js - Versione ottimizzata per prestazioni
 import { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { supabase, fetchWithRetry } from '../lib/supabase';
@@ -11,6 +11,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [authInitialized, setAuthInitialized] = useState(false);
   const router = useRouter();
+  
 
   // Funzione per ottenere il profilo utente con memoization
   const fetchUserProfile = useCallback(async (userId) => {
@@ -71,29 +72,6 @@ export function AuthProvider({ children }) {
     } catch (error) {
       console.error('Unexpected error fetching profile:', error);
       return null;
-    }
-  };
-
-  // Aggiungi questa funzione per verificare se è necessario completare l'onboarding Stripe
-  const checkStripeOnboarding = async (userId) => {
-    try {
-      // Controlla se l'utente ha un account Stripe
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('stripe_account_id')
-        .eq('id', userId)
-        .single();
-
-      // Se l'utente non ha un account Stripe e sta visitando la pagina printqr
-      // reindirizzalo alla pagina connect-stripe
-      if ((!data?.stripe_account_id || data.stripe_account_id === '') && 
-          typeof window !== 'undefined' && 
-          window.location.pathname.includes('/host/printqr/')) {
-        const propertyId = window.location.pathname.split('/').pop();
-        window.location.href = `/host/connect-stripe?returnUrl=/host/printqr/${propertyId}`;
-      }
-    } catch (err) {
-      console.error('Error checking Stripe onboarding:', err);
     }
   };
 
@@ -187,9 +165,6 @@ export function AuthProvider({ children }) {
           const profileData = await fetchUserProfile(session.user.id);
           if (isSubscribed) {
             setProfile(profileData);
-            
-            // Controlla se l'utente ha bisogno di completare l'onboarding Stripe
-            await checkStripeOnboarding(session.user.id);
           }
         } else {
           console.log('No valid session found');
@@ -240,9 +215,6 @@ export function AuthProvider({ children }) {
             const profileData = await fetchUserProfile(session.user.id);
             if (isSubscribed) {
               setProfile(profileData);
-              
-              // Controlla se l'utente ha bisogno di completare l'onboarding Stripe
-              await checkStripeOnboarding(session.user.id);
             }
           } else {
             setUser(null);
@@ -328,9 +300,6 @@ export function AuthProvider({ children }) {
         // Get profile
         const profileData = await fetchUserProfile(data.user.id);
         setProfile(profileData);
-        
-        // Controlla se l'utente ha bisogno di completare l'onboarding Stripe
-        await checkStripeOnboarding(data.user.id);
       }
       
       return { user: data.user, error: null };
