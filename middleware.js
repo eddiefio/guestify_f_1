@@ -35,9 +35,37 @@ export async function middleware(req) {
 
     // If no session, redirect to login
     if (!session) {
+      // Verifica se siamo già nella pagina di login per evitare redirect loop
       const redirectUrl = new URL('/auth/signin', req.url);
+      
+      // Assicuriamoci di non perdere la query string originale
+      const currentUrl = new URL(req.url);
+      if (currentUrl.searchParams.has('redirectedFrom')) {
+        // Se siamo già stati reindirizzati, non lo facciamo di nuovo
+        return NextResponse.next();
+      }
+      
+      // Aggiungiamo il parametro per tracciare il reindirizzamento
       redirectUrl.searchParams.set('redirectedFrom', req.nextUrl.pathname);
-      return NextResponse.redirect(redirectUrl);
+      
+      // Impostiamo un cookie per prevenire loop di redirect
+      const response = NextResponse.redirect(redirectUrl);
+      response.cookies.set('auth_redirect_attempted', 'true', {
+        maxAge: 60, // 60 secondi
+        path: '/'
+      });
+      
+      return response;
+    } else {
+      // Se abbiamo una sessione valida, procediamo
+      const response = NextResponse.next();
+      
+      // Rimuoviamo il cookie di redirect se esistente
+      if (req.cookies.has('auth_redirect_attempted')) {
+        response.cookies.delete('auth_redirect_attempted');
+      }
+      
+      return response;
     }
   }
 
