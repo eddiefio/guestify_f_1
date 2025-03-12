@@ -1,28 +1,55 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../components/layout/Layout';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 export default function ConnectStripe() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [sessionData, setSessionData] = useState(null);
   const router = useRouter();
   const { user } = useAuth();
+
+  // Ottieni i dati della sessione quando la pagina si carica
+  useEffect(() => {
+    const getSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (!error && data.session) {
+        setSessionData(data.session);
+        console.log("Session loaded successfully");
+      } else {
+        console.error("Error loading session:", error);
+      }
+    };
+    
+    getSession();
+  }, []);
 
   const handleConnect = async () => {
     setLoading(true);
     setError(null);
 
     try {
+      // Log per debug
+      console.log("Connect Stripe clicked", {
+        hasUser: !!user,
+        userId: user?.id,
+        hasSessionData: !!sessionData,
+        accessToken: sessionData?.access_token ? "Present" : "None"
+      });
+
       const response = await fetch('/api/stripe/connect', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          userId: user?.id 
+          userId: user?.id,
+          userEmail: user?.email,
+          accessToken: sessionData?.access_token || null
         }),
-        credentials: 'same-origin' // Importante: manda i cookie con la richiesta
+        credentials: 'include' // Invia i cookie con la richiesta
       });
 
       const data = await response.json();

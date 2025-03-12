@@ -8,20 +8,15 @@
       ],
       "name": "middleware",
       "page": "/",
-      "matchers": [
-        {
-          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/host(?:\\/((?:[^\\/#\\?]+?)(?:\\/(?:[^\\/#\\?]+?))*))?(.json)?[\\/#\\?]?$",
-          "originalSource": "/host/:path*"
-        }
-      ],
+      "matchers": [],
       "wasm": [],
       "assets": [],
       "env": {
-        "__NEXT_BUILD_ID": "b73L8mzjBIxNiI7HCe4Bu",
-        "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "MabwjPomswXaRuZK3OFtq7Dhd6JbTFoRSDg0zY/6tMg=",
-        "__NEXT_PREVIEW_MODE_ID": "66938e3c4df47263449719be8e06c411",
-        "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "e554ebe22167f2d9ea6e131725cce64a5bba896b4c31cf1ef108cc6d1da08bbc",
-        "__NEXT_PREVIEW_MODE_SIGNING_KEY": "e99d7809a9ad457b4c5b14d987627e5293981438a4185e4ae831f80fa66c8f66"
+        "__NEXT_BUILD_ID": "KtJDJlkVr6enp79EC7uGT",
+        "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "2CuSzyNnoyd0xDZKv2H2ee0wsnYKnnksWj5cztZuMDI=",
+        "__NEXT_PREVIEW_MODE_ID": "0af1c1c50afdd801b04cd52653fbe793",
+        "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "8ea0f6538de66a5a2decb2942a07747ff02201ed5cc7a71410e5339ae58ff6df",
+        "__NEXT_PREVIEW_MODE_SIGNING_KEY": "222c37a4f39f0ad7073163dfe8d48c577d7da6a0a7555cde2b58fbef97934369"
       }
     }
   },

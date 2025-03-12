@@ -20,5 +20,13 @@
   "node_modules\\@supabase\\storage-js\\dist\\module\\lib\\helpers.js -> @supabase/node-fetch": {
     "id": 9743,
     "files": []
+  },
+  "pages\\host\\inventory\\[propertyId]\\add-product.js -> ../../../../components/BarcodeScanner": {
+    "id": 4389,
+    "files": [
+      "static/chunks/527dfe43.3e85aed08ff3453b.js",
+      "static/chunks/916.9b61fe1ce566dc3a.js",
+      "static/chunks/389.53e0aa2dee4cf8f1.js"
+    ]
   }
 }
