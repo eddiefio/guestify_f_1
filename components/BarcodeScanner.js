@@ -1,117 +1,124 @@
-// components/BarcodeScanner.js - Soluzione definitiva
+// components/BarcodeScanner.js - Gestione DOM corretta
 import { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 
 /**
- * Componente per la scansione di codici a barre utilizzando html5-qrcode
- * 
- * @param {Object} props - Le props del componente
- * @param {function} props.onDetected - Callback chiamato quando un barcode viene rilevato
- * @param {boolean} props.isScanning - Se il componente deve iniziare la scansione
- * @param {function} props.onError - Callback chiamato in caso di errore
+ * Componente per la scansione di codici a barre con gestione robusta del DOM
  */
 export default function BarcodeScanner({ onDetected, isScanning, onError }) {
   const [error, setError] = useState(null);
-  const [scannerReady, setScannerReady] = useState(false);
+  const [initialized, setInitialized] = useState(false);
   const scannerRef = useRef(null);
   const containerRef = useRef(null);
-  
+  const scannerElementId = 'qr-reader-' + Math.random().toString(36).substring(7);
+
+  // Gestione dello scanner
   useEffect(() => {
     let scanner = null;
+    let mounted = true;
 
-    // Configurazione dello scanner senza riferimenti a formati specifici
-    // che potrebbero non essere disponibili
-    const config = {
-      fps: 10,
-      qrbox: { width: 250, height: 150 },
-      // Non specifichiamo formatsToSupport per evitare l'errore
-      aspectRatio: 1.0,
-      showTorchButtonIfSupported: true,
-      showZoomSliderIfSupported: true
-    };
+    const createScanner = async () => {
+      if (!isScanning || !mounted) return;
 
-    const startScanner = async () => {
       try {
-        // Assicuriamoci che il container sia vuoto prima di inizializzare
-        if (containerRef.current) {
-          containerRef.current.innerHTML = '';
-          
-          // Creiamo un elemento per lo scanner
-          const scannerElement = document.createElement('div');
-          scannerElement.id = 'html5qr-code-full-region';
+        console.log('Inizializzazione dello scanner...');
+        
+        // Verifica e prepara il container
+        if (!containerRef.current) {
+          console.error('Container not found');
+          return;
+        }
+        
+        // Crea un nuovo div per lo scanner se non esiste
+        let scannerElement = document.getElementById(scannerElementId);
+        if (!scannerElement) {
+          scannerElement = document.createElement('div');
+          scannerElement.id = scannerElementId;
           containerRef.current.appendChild(scannerElement);
-          
-          console.log('Inizializzazione dello scanner...');
-          
-          // Inizializziamo lo scanner
-          scanner = new Html5Qrcode('html5qr-code-full-region');
-          scannerRef.current = scanner;
-          
-          // Quando viene rilevato un codice
-          const onScanSuccess = (decodedText, decodedResult) => {
-            console.log(`Barcode detected: ${decodedText}`, decodedResult);
-            
-            // Fermiamo lo scanner e chiamiamo il callback
-            if (scanner) {
-              scanner.stop().then(() => {
+        }
+        
+        // Configurazione minima
+        const config = {
+          fps: 10,
+          qrbox: { width: 250, height: 150 }
+        };
+
+        // Creiamo l'istanza dello scanner
+        scanner = new Html5Qrcode(scannerElementId);
+        scannerRef.current = scanner;
+
+        // Avvia lo scanner
+        await scanner.start(
+          { facingMode: "environment" },
+          config,
+          (decodedText) => {
+            console.log(`Codice rilevato: ${decodedText}`);
+            if (mounted && onDetected) {
+              safeStopScanner().then(() => {
                 onDetected(decodedText);
-              }).catch(err => {
-                console.error('Error stopping scanner:', err);
               });
             }
-          };
-          
-          // Quando si verifica un errore durante la scansione
-          const onScanFailure = (error) => {
-            // Non facciamo nulla, è normale avere errori quando non c'è un codice a barre nel frame
-          };
-          
-          // Avviamo lo scanner usando la fotocamera
-          await scanner.start(
-            { facingMode: "environment" }, // Preferisci la fotocamera posteriore
-            config,
-            onScanSuccess,
-            onScanFailure
-          );
-          
-          setScannerReady(true);
-          setError(null); // Resettiamo eventuali errori precedenti
+          },
+          () => {}  // Non gestire gli errori di scansione
+        );
+        
+        if (mounted) {
+          setError(null);
+          setInitialized(true);
+        }
+        
+      } catch (err) {
+        console.error('Errore di inizializzazione scanner:', err);
+        if (mounted) {
+          setError(`Camera error: ${err.message || 'Unknown error'}`);
+          if (onError) onError(err);
+        }
+      }
+    };
+    
+    // Funzione sicura per fermare lo scanner
+    const safeStopScanner = async () => {
+      if (!scannerRef.current) return;
+      
+      try {
+        console.log('Stopping scanner safely...');
+        // Verifica se lo scanner è attivo prima di fermarlo
+        if (scannerRef.current.isScanning) {
+          await scannerRef.current.stop();
         }
       } catch (err) {
-        console.error('Error starting scanner:', err);
-        setError(`Cannot access camera: ${err.message}. Please ensure your device has a camera and you've given permission to use it.`);
-        if (onError) onError(err);
+        console.warn('Error while stopping scanner:', err);
+      } finally {
+        scannerRef.current = null;
+        setInitialized(false);
       }
     };
 
-    const stopScanner = async () => {
-      if (scannerRef.current) {
-        try {
-          await scannerRef.current.stop();
-          scannerRef.current = null;
-          
-          // Puliamo il container
-          if (containerRef.current) {
-            containerRef.current.innerHTML = '';
-          }
-        } catch (err) {
-          console.error('Error stopping scanner:', err);
-        }
-      }
-    };
-
-    // Avvia o ferma lo scanner in base a isScanning
-    if (isScanning) {
-      startScanner();
-    } else {
-      stopScanner();
+    // Gestisci l'avvio e lo stop dello scanner
+    if (isScanning && !initialized) {
+      createScanner();
+    } else if (!isScanning && initialized) {
+      safeStopScanner();
     }
 
-    // Pulizia quando il componente viene smontato
+    // Pulizia al dismount
     return () => {
-      stopScanner();
+      mounted = false;
+      safeStopScanner();
+      
+      // Rimuovi manualmente l'elemento se esistente
+      setTimeout(() => {
+        try {
+          const element = document.getElementById(scannerElementId);
+          if (element && element.parentNode) {
+            element.parentNode.removeChild(element);
+          }
+        } catch (e) {
+          console.warn('Error cleaning up scanner element:', e);
+        }
+      }, 100);
     };
-  }, [isScanning, onDetected, onError]);
+  }, [isScanning, onDetected, onError, initialized]);
 
   return (
     <div className="w-full">
@@ -126,11 +133,11 @@ export default function BarcodeScanner({ onDetected, isScanning, onError }) {
         className="w-full bg-black relative rounded overflow-hidden" 
         style={{ minHeight: '300px' }}
       >
-        {!scannerReady && isScanning && (
+        {isScanning && !initialized && (
           <div className="absolute inset-0 flex items-center justify-center text-white">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white mb-2"></div>
-              <p>Initializing camera...</p>
+              <p>Preparing camera...</p>
             </div>
           </div>
         )}
