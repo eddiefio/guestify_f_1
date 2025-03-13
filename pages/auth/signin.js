@@ -41,24 +41,14 @@ export default function SignIn() {
     setError(null);
 
     try {
-      console.log('Attempting login with:', email);
       const { user, error } = await signIn(email, password);
       
-      if (error) {
-        console.error('Login error:', error);
-        throw error;
-      }
+      if (error) throw error;
       
       if (user) {
-        console.log('Login successful, user:', user.id);
-        
-        // Store the last successful login
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('lastLoginSuccess', new Date().toISOString());
-        }
-        
-        // Modifica: usa replace invece di push e rimuovi il timeout
-        router.replace('/host/dashboard');
+        // Attendiamo un momento prima di reindirizzare
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        window.location.href = '/host/dashboard';
       } else {
         throw new Error('No user returned from login');
       }

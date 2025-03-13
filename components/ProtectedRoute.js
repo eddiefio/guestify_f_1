@@ -9,35 +9,15 @@ export default function ProtectedRoute({ children }) {
   const [isVerifying, setIsVerifying] = useState(true);
 
   useEffect(() => {
-    // Safety timeout to prevent infinite loading state
-    const timeoutId = setTimeout(() => {
-      if (isVerifying) {
-        console.warn('Route verification timed out, forcing completion');
-        setIsVerifying(false);
-        
-        // Se siamo ancora in caricamento dopo il timeout, reindirizza al login
-        if (!user) {
-          router.replace('/auth/signin');
-        }
-      }
-    }, 5000); // 5 seconds timeout
-
-    // Verifica solo dopo che l'autenticazione è stata inizializzata
     if (!loading && authInitialized) {
       if (!user) {
-        // Se non c'è un utente, reindirizza alla pagina di login
-        console.log('No user found, redirecting to login');
-        router.replace('/auth/signin');
+        window.location.href = '/auth/signin';
       } else {
-        // Utente verificato, non è più necessario verificare
         setIsVerifying(false);
       }
     }
+  }, [user, loading, authInitialized]);
 
-    return () => clearTimeout(timeoutId);
-  }, [user, loading, authInitialized, router, isVerifying]);
-
-  // Mostra un'interfaccia di caricamento o nulla durante la verifica
   if (loading || isVerifying) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -46,6 +26,5 @@ export default function ProtectedRoute({ children }) {
     );
   }
 
-  // Se l'utente è autenticato, mostra il contenuto della pagina
   return <>{children}</>;
 }

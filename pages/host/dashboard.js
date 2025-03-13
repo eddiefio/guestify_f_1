@@ -12,125 +12,31 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [stripeRedirectComplete, setStripeRedirectComplete] = useState(false);
   const { user, profile } = useAuth();
   const router = useRouter();
 
-  // Check for Stripe redirect
   useEffect(() => {
-    // Check URL for Stripe redirect parameters
-    const queryParams = new URLSearchParams(window.location.search);
-    const isStripeRedirect = queryParams.has('setup_intent') || 
-                             queryParams.has('setup_intent_client_secret') || 
-                             window.location.pathname.includes('/stripe-callback');
-    
-    if (isStripeRedirect && user && !stripeRedirectComplete) {
-      console.log('Detected Stripe redirect, checking account ID');
-      
-      // If this is a Stripe redirect, check if the profile has a stripe_account_id
-      const checkStripeAccount = async () => {
-        try {
-          // Verify the latest profile data from the database
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('stripe_account_id')
-            .eq('id', user.id)
-            .single();
-            
-          if (error) throw error;
-          
-          if (data && data.stripe_account_id) {
-            console.log('Stripe account is connected:', data.stripe_account_id);
-            
-            // Get the return URL from localStorage
-            const returnUrl = localStorage.getItem('stripe_return_url');
-            if (returnUrl) {
-              localStorage.removeItem('stripe_return_url');
-              console.log('Redirecting to:', returnUrl);
-              router.push(returnUrl);
-              return;
-            }
-          } else {
-            console.log('No Stripe account ID found in profile');
-          }
-          
-          setStripeRedirectComplete(true);
-        } catch (err) {
-          console.error('Error checking Stripe account:', err);
-          setStripeRedirectComplete(true);
-        }
-      };
-      
-      checkStripeAccount();
-    }
-  }, [user, router, stripeRedirectComplete]);
+    if (!user) return;
 
-  useEffect(() => {
-    let isMounted = true;
-    let fetchTimeout;
-
-    async function fetchProperties() {
+    const fetchProperties = async () => {
       try {
-        // Verify explicitly if the user is available
-        if (!user || !user.id) {
-          if (isMounted) {
-            console.log('No valid user found in dashboard, not fetching properties');
-            setProperties([]);
-            setLoading(false);
-          }
-          return;
-        }
-
-        // Set a timeout to ensure we don't get stuck loading
-        fetchTimeout = setTimeout(() => {
-          if (isMounted && loading) {
-            console.warn('Properties fetch timeout - forcing completion');
-            setLoading(false);
-            setError('Data loading timed out. Please refresh the page.');
-          }
-        }, 10000); // 10 seconds timeout
-
-        console.log('Fetching properties for user:', user.id);
         const { data, error } = await supabase
-          .from('apartments')
+          .from('properties')
           .select('*')
-          .eq('host_id', user.id);
+          .eq('user_id', user.id);
 
-        if (error) {
-          console.error('Supabase error:', error);
-          throw error;
-        }
-
-        console.log('Fetched properties:', data ? data.length : 0);
-        
-        if (isMounted) {
-          setProperties(data || []);
-          setLoading(false);
-        }
+        if (error) throw error;
+        setProperties(data || []);
       } catch (err) {
         console.error('Error fetching properties:', err);
-        if (isMounted) {
-          setError('Failed to load properties: ' + (err.message || 'Unknown error'));
-          setLoading(false);
-        }
+        setError(err.message);
       } finally {
-        // Always make sure to clear the timeout
-        if (fetchTimeout) {
-          clearTimeout(fetchTimeout);
-        }
+        setLoading(false);
       }
-    }
-
-    // Start fetching data only if there is a valid user and we are in loading state
-    if (loading) {
-      fetchProperties();
-    }
-
-    return () => {
-      isMounted = false;
-      clearTimeout(fetchTimeout);
     };
-  }, [user, loading]);
+
+    fetchProperties();
+  }, [user]);
 
   // Filter properties based on search term
   const filteredProperties = properties.filter(prop => 
