@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import AuthLayout from '../../components/layout/AuthLayout';
-import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { CountrySelect } from '../../components/layout/CountrySelect';
 
 export default function SignUp() {
@@ -15,7 +15,6 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const router = useRouter();
-  const { signUp } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,22 +28,40 @@ export default function SignUp() {
     }
   
     try {
-      const { user, error } = await signUp(email, password, { name, country });
+      // Use Supabase directly instead of the Auth context
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { 
+          data: { name, country } 
+        }
+      });
       
-      if (error) {
-        if (error.message.toLowerCase().includes('duplicate') || error.message.toLowerCase().includes('already')) {
+      if (signUpError) {
+        if (signUpError.message.toLowerCase().includes('duplicate') || 
+            signUpError.message.toLowerCase().includes('already')) {
           throw new Error('User already exists');
         }
-        throw error;
+        throw signUpError;
       }
       
-      if (user) {
-        // Set a flag to show the email confirmation message
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('showConfirmEmailMessage', 'true');
-        }
+      if (data.user) {
+        // Create profile record in database
+        await supabase.from('profiles').insert([
+          {
+            id: data.user.id,
+            name,
+            country
+          }
+        ]);
+
+        // Set flag to show confirmation message
+        localStorage.setItem('showConfirmEmailMessage', 'true');
         
-        // Redirect to login page
+        // IMPORTANT: Sign out the user to prevent automatic login
+        await supabase.auth.signOut();
+        
+        // Redirect to signin page with parameter
         router.push('/auth/signin?newRegistration=true');
       }
     } catch (error) {

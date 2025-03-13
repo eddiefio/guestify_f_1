@@ -16,15 +16,15 @@ export default function SignIn() {
 
   // Check if the user just registered
   useEffect(() => {
-    if (router.query.newRegistration === 'true') {
-      // Check if this is right after signup (using the localStorage flag)
-      const showMessage = typeof window !== 'undefined' && localStorage.getItem('showConfirmEmailMessage') === 'true';
-      
-      if (showMessage) {
-        setSuccessMessage('Registration successful! Please check your email to confirm your account before signing in.');
-        // Remove the flag after showing the message to ensure it's only shown once
-        localStorage.removeItem('showConfirmEmailMessage');
-      }
+    // Check if we have the newRegistration query parameter and the localStorage flag
+    const hasNewRegistrationParam = router.query.newRegistration === 'true';
+    const hasLocalStorageFlag = typeof window !== 'undefined' && 
+                              localStorage.getItem('showConfirmEmailMessage') === 'true';
+    
+    if (hasNewRegistrationParam && hasLocalStorageFlag) {
+      setSuccessMessage('Registration successful! Please check your email to confirm your account before signing in.');
+      // Remove the flag after showing the message
+      localStorage.removeItem('showConfirmEmailMessage');
     }
   }, [router.query]);
 
