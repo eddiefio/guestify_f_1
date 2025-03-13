@@ -300,6 +300,8 @@ export function AuthProvider({ children }) {
       if (data.user) {
         // Salva la sessione in localStorage
         if (typeof window !== 'undefined' && data.session?.expires_at) {
+          // Set a temporary cookie to indicate recent login
+    document.cookie = `recent-signin=true; path=/; max-age=60`;
           localStorage.setItem('auth_session', JSON.stringify({
             user: data.user,
             expires_at: data.session.expires_at

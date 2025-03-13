@@ -9,6 +9,7 @@ export default function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false); // Added new state for tracking redirects
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const router = useRouter();
@@ -30,13 +31,16 @@ export default function SignIn() {
 
   // If user is already authenticated, redirect to dashboard
   useEffect(() => {
-    if (user) {
+    if (user && !redirecting) {
+      setRedirecting(true); // Set redirecting flag
       router.push('/host/dashboard');
     }
-  }, [user, router]);
+  }, [user, router, redirecting]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading || redirecting) return; // Prevent multiple submissions
+    
     setLoading(true);
     setError(null);
   
@@ -46,10 +50,16 @@ export default function SignIn() {
       if (error) throw error;
       
       if (user) {
-        // Wait for auth state to settle before redirecting
+        // Set a cookie to help middleware know we just signed in
+        document.cookie = `recent-signin=true; path=/; max-age=60`; // Valid for 60 seconds
+        
+        // Set redirecting flag to prevent multiple redirects
+        setRedirecting(true);
+        
+        // Wait longer for auth state to settle before redirecting
         setTimeout(() => {
           router.push('/host/dashboard');
-        }, 1500);
+        }, 3000); // Increased from 1500ms to 3000ms
       } else {
         throw new Error('No user returned from login');
       }
@@ -57,8 +67,19 @@ export default function SignIn() {
       console.error('Error in handleSubmit:', error);
       setError(error.message || 'Failed to sign in');
       setLoading(false);
+      setRedirecting(false); // Reset redirecting flag on error
     }
   };
+
+  // If already redirecting, show a loading state
+  if (redirecting) {
+    return (
+      <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10 text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto"></div>
+        <p className="mt-4 text-gray-600">Signing in, please wait...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10">
@@ -114,7 +135,7 @@ export default function SignIn() {
         <button
           type="submit"
           className="w-full bg-black text-white py-2 rounded hover:bg-gray-800 transition font-semibold"
-          disabled={loading}
+          disabled={loading || redirecting}
         >
           {loading ? 'Signing in...' : 'Sign in'}
         </button>

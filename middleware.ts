@@ -3,6 +3,7 @@ import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// In middleware.ts
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
@@ -14,7 +15,15 @@ export async function middleware(req: NextRequest) {
 
   // If trying to access a protected route without a session, redirect to login
   if (!session && req.nextUrl.pathname.startsWith('/host/')) {
-    // Add debugging header to identify this middleware is handling the request
+    // Check if there's a recent sign-in cookie
+    const recentSignin = req.cookies.get('recent-signin');
+    
+    // If there's a recent sign-in, allow the navigation to proceed
+    if (recentSignin) {
+      return res;
+    }
+    
+    // Otherwise redirect to sign-in
     const url = req.nextUrl.clone();
     url.pathname = '/auth/signin';
     return NextResponse.redirect(url);
