@@ -18,26 +18,42 @@ export default async function handler(req, res) {
     // Create authenticated Supabase client
     const supabase = createServerSupabaseClient({ req, res });
 
+    // Check if user is authenticated
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      console.error('Session error:', sessionError);
+      return res.status(401).json({ error: 'Unauthorized - Session error' });
+    }
+
+    if (!session) {
+      return res.status(401).json({ error: 'Unauthorized - No session' });
+    }
+
+    console.log('User ID:', session.user.id);
+    console.log('Property ID:', propertyId);
+
     // Fetch property details
     const { data: property, error: propertyError } = await supabase
       .from('apartments')
-      .select(`
-        id,
-        name,
-        address,
-        city,
-        state
-      `)
+      .select('*')
       .eq('id', propertyId)
+      .eq('user_id', session.user.id)
       .single();
+
+    console.log('Property data:', property);
+    console.log('Property error:', propertyError);
       
     if (propertyError) {
       console.error('Supabase error:', propertyError);
-      return res.status(500).json({ error: 'Failed to fetch property details' });
+      return res.status(500).json({ error: `Failed to fetch property details: ${propertyError.message}` });
     }
 
     if (!property) {
-      return res.status(404).json({ error: 'Property not found' });
+      return res.status(404).json({ error: 'Property not found or access denied' });
     }
 
     // Generate menu URL
@@ -81,13 +97,6 @@ export default async function handler(req, res) {
        .fillColor('#000000')
        .text(property.name, { align: 'center' });
 
-    if (property.address) {
-      doc.moveDown(0.5)
-         .fontSize(12)
-         .fillColor('#666666')
-         .text(`${property.address}${property.city ? `, ${property.city}` : ''}`, { align: 'center' });
-    }
-
     doc.moveDown(2);
 
     // Add QR code
@@ -117,7 +126,7 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('Error in PDF generation:', error);
     if (!res.headersSent) {
-      res.status(500).json({ error: 'Failed to generate PDF: ' + error.message });
+      res.status(500).json({ error: `Failed to generate PDF: ${error.message}` });
     }
   }
 }
