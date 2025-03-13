@@ -4,36 +4,30 @@ import QRCode from 'qrcode';
 import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
 
 export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const { propertyId } = req.query;
-  
-  if (!propertyId) {
-    return res.status(400).json({ error: 'Property ID is required' });
-  }
+  // Initialize Supabase client
+  const supabase = createServerSupabaseClient({ req, res });
 
   try {
-    // Create authenticated Supabase client
-    const supabase = createServerSupabaseClient({ req, res });
-
-    // Check if user is authenticated
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+    // Get user session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
     if (sessionError) {
       console.error('Session error:', sessionError);
-      return res.status(401).json({ error: 'Unauthorized - Session error' });
+      return res.status(401).json({ error: 'Session error' });
     }
 
     if (!session) {
-      return res.status(401).json({ error: 'Unauthorized - No session' });
+      console.error('No session found');
+      return res.status(401).json({ error: 'No session found' });
     }
 
-    console.log('User ID:', session.user.id);
+    const { propertyId } = req.query;
+    
+    if (!propertyId) {
+      return res.status(400).json({ error: 'Property ID is required' });
+    }
+
+    console.log('Session user ID:', session.user.id);
     console.log('Property ID:', propertyId);
 
     // Fetch property details
@@ -44,17 +38,16 @@ export default async function handler(req, res) {
       .eq('user_id', session.user.id)
       .single();
 
-    console.log('Property data:', property);
-    console.log('Property error:', propertyError);
-      
     if (propertyError) {
-      console.error('Supabase error:', propertyError);
-      return res.status(500).json({ error: `Failed to fetch property details: ${propertyError.message}` });
+      console.error('Property error:', propertyError);
+      return res.status(500).json({ error: `Database error: ${propertyError.message}` });
     }
 
     if (!property) {
       return res.status(404).json({ error: 'Property not found or access denied' });
     }
+
+    console.log('Property found:', property);
 
     // Generate menu URL
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -124,9 +117,7 @@ export default async function handler(req, res) {
     doc.end();
 
   } catch (error) {
-    console.error('Error in PDF generation:', error);
-    if (!res.headersSent) {
-      res.status(500).json({ error: `Failed to generate PDF: ${error.message}` });
-    }
+    console.error('Server error:', error);
+    return res.status(500).json({ error: error.message });
   }
 }

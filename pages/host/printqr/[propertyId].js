@@ -95,9 +95,13 @@ export default function PrintQR() {
     try {
       setPrintingStatus('preparing');
       
-      // Request PDF from server
+      // Request PDF from server with credentials
       const response = await fetch(`/api/printqr-pdf?propertyId=${propertyId}`, {
         method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
       
       if (!response.ok) {
