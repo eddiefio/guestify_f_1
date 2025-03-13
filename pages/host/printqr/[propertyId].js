@@ -95,39 +95,30 @@ export default function PrintQR() {
     try {
       setPrintingStatus('preparing');
       
-      // Get the current session
-      const { data: { session } } = await supabase.auth.getSession();
+      // Create PDF content similar to direct print
+      const printWindow = window.open('', '', 'height=500,width=500');
+      printWindow.document.write('<html><head><title>Print QR Code</title>');
+      printWindow.document.write('</head><body>');
+      printWindow.document.write('<div style="text-align:center; padding:20px;">');
+      printWindow.document.write('<h1 style="font-family:Arial,sans-serif;color:#5e2bff;">Guestify Menu</h1>');
+      printWindow.document.write('<h2 style="font-family:Arial,sans-serif;color:#333;">' + propertyName + '</h2>');
+      printWindow.document.write('<div style="margin:30px 0;">');
+      printWindow.document.write('<img src="' + qrCodeDataURL + '" style="width:300px;height:300px;" />');
+      printWindow.document.write('</div>');
+      printWindow.document.write('<p style="font-family:Arial,sans-serif;color:#666;">Scan this QR code to access the menu</p>');
+      printWindow.document.write('<p style="font-family:Arial,sans-serif;color:#999;font-size:12px;">' + menuUrl + '</p>');
+      printWindow.document.write('</div>');
+      printWindow.document.write('</body></html>');
+      printWindow.document.close();
       
-      if (!session) {
-        throw new Error('No active session');
-      }
+      // Wait for content to load
+      setTimeout(() => {
+        printWindow.document.title = "guestify-qrcode.pdf";
+        printWindow.print();
+        setPrintingStatus('ready');
+        printWindow.close();
+      }, 250);
 
-      // Request PDF from server with access token
-      const response = await fetch(`/api/printqr-pdf?propertyId=${propertyId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate PDF');
-      }
-      
-      const blob = await response.blob();
-      
-      if (blob.size === 0) {
-        throw new Error('Generated PDF is empty');
-      }
-      
-      const url = URL.createObjectURL(blob);
-      setDownloadUrl(url);
-      setPrintingStatus('ready');
-      
-      // Open PDF in new tab
-      window.open(url, '_blank');
     } catch (error) {
       console.error('Error creating PDF:', error);
       setPrintingStatus('error');
@@ -211,32 +202,13 @@ export default function PrintQR() {
           </div>
 
           <div className="flex flex-col sm:flex-row justify-center gap-4 mb-6">
-            {/* Print QR button */}
+            {/* Save as PDF button */}
             <button
               onClick={handleDirectPrint}
-              className="bg-white border border-[#5e2bff] text-[#5e2bff] px-4 py-2 rounded-full hover:bg-purple-50 transition-colors flex items-center justify-center"
-            >
-              <i className="fas fa-print mr-2"></i>
-              Print Directly
-            </button>
-
-            {/* Download PDF button */}
-            <button
-              onClick={handlePrintQR}
-              disabled={printingStatus === 'preparing'}
               className="bg-[#fad02f] text-black px-4 py-2 rounded-full hover:opacity-90 transition font-semibold flex items-center justify-center"
             >
-              {printingStatus === 'preparing' ? (
-                <>
-                  <i className="fas fa-spinner fa-spin mr-2"></i>
-                  Preparing PDF...
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-file-pdf mr-2"></i>
-                  Download PDF
-                </>
-              )}
+              <i className="fas fa-file-pdf mr-2"></i>
+              Save as PDF
             </button>
           </div>
 
