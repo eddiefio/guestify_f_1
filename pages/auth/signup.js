@@ -21,13 +21,13 @@ export default function SignUp() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
+  
     if (!terms) {
       setError('You must accept the Terms and Conditions');
       setLoading(false);
       return;
     }
-
+  
     try {
       const { user, error } = await signUp(email, password, { name, country });
       
@@ -39,8 +39,8 @@ export default function SignUp() {
       }
       
       if (user) {
-        // Redirect to connect stripe page
-        router.push('/host/connect-stripe');
+        // Redirect to login page
+        router.push('/auth/signin?newRegistration=true');
       }
     } catch (error) {
       console.error('Error signing up:', error);

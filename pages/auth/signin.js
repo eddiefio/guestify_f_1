@@ -13,6 +13,13 @@ export default function SignIn() {
   const router = useRouter();
   const { signIn, user } = useAuth();
 
+    // Check if the user just registered
+    useEffect(() => {
+      if (router.query.newRegistration === 'true') {
+        setSuccessMessage('Registration successful! Please check your email to confirm your account before signing in.');
+      }
+    }, [router.query]);
+
   // Se l'utente è già autenticato, redirect alla dashboard
   if (user) {
     router.push('/host/dashboard');
@@ -34,7 +41,7 @@ export default function SignIn() {
         }
         throw error;
       }
-      
+
       if (user) {
         console.log('Login successful, user:', user.id);
         

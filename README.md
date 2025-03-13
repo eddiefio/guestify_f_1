@@ -3,3 +3,5 @@ L'ospite accede al menù tramite un QR code posto all'interno dell'appartamento 
 L'applicazione ricarica un 12% sull'ospite mentre è gratuita per gli host.
 
 L'applicazione è sviluppata in Next.js, usa Supabase come database e Vercel per il deploy
+
+L'url dell'app è https://app.guestify.shop

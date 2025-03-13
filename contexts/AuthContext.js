@@ -280,9 +280,21 @@ export function AuthProvider({ children }) {
       );
       
       if (error) {
+        // Improve error message for email confirmation
+        if (error.message.includes('Email not confirmed')) {
+          return { 
+            user: null, 
+            error: { 
+              ...error, 
+              message: 'Please check your email and confirm your account before signing in.' 
+            } 
+          };
+        }
+        
         console.error('Sign in error:', error);
         throw error;
       }
+      
       
       console.log('Sign in successful:', data.user?.id);
       
