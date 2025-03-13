@@ -9,11 +9,9 @@ export default async function handler(req, res) {
     const supabase = createServerSupabaseClient({ req, res });
 
     // Check if we have a session
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
 
-    if (!user) {
+    if (!session) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
@@ -28,7 +26,7 @@ export default async function handler(req, res) {
       .from('apartments')
       .select('*')
       .eq('id', propertyId)
-      .eq('user_id', user.id)
+      .eq('user_id', session.user.id)
       .single();
 
     if (propertyError) {

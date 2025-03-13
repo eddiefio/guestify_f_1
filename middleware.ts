@@ -10,9 +10,12 @@ export async function middleware(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
 
-  // Add session user to response headers
-  if (session) {
-    res.headers.set('x-user-id', session.user.id);
+  // If there's no session and we're trying to access protected routes
+  if (!session && (req.nextUrl.pathname.startsWith('/api/') || req.nextUrl.pathname.startsWith('/host/'))) {
+    return NextResponse.json(
+      { error: 'Authentication required' },
+      { status: 401 }
+    );
   }
 
   return res;
