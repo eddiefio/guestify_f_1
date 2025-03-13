@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function AuthLayout({ children, title = 'Guestify - Auth' }) {
-  const { user } = useAuth();
+  const { user, authInitialized } = useAuth();
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 text-gray-800">
@@ -30,7 +30,8 @@ export default function AuthLayout({ children, title = 'Guestify - Auth' }) {
             />
           </div>
           <nav className="flex items-center">
-            {user && (
+            {/* Mostra i pulsanti di navigazione SOLO se l'utente è autenticato E l'autenticazione è inizializzata */}
+            {authInitialized && user ? (
               <>
                 <Link href="/host/dashboard">
                   <span className="mx-1 sm:mx-2 text-white font-semibold hover:opacity-80 transition-colors text-sm sm:text-base cursor-pointer">
@@ -43,7 +44,7 @@ export default function AuthLayout({ children, title = 'Guestify - Auth' }) {
                   </span>
                 </Link>
               </>
-            )}
+            ) : null}
           </nav>
         </div>
       </header>

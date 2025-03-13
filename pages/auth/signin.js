@@ -9,11 +9,11 @@ export default function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [redirecting, setRedirecting] = useState(false); // Added new state for tracking redirects
+  const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const router = useRouter();
-  const { signIn, user } = useAuth();
+  const { signIn, user, authInitialized } = useAuth();
 
   // Check if the user just registered
   useEffect(() => {
@@ -30,12 +30,15 @@ export default function SignIn() {
   }, [router.query]);
 
   // If user is already authenticated, redirect to dashboard
+  // Modificato per assicurarsi che l'autenticazione sia inizializzata completamente
   useEffect(() => {
-    if (user && !redirecting) {
-      setRedirecting(true); // Set redirecting flag
+    // Aspetta che l'auth sia completamente inizializzata e che ci sia un utente valido
+    if (authInitialized && user && !redirecting) {
+      console.log('User is authenticated, redirecting to dashboard');
+      setRedirecting(true);
       router.push('/host/dashboard');
     }
-  }, [user, router, redirecting]);
+  }, [user, router, redirecting, authInitialized]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,15 +54,13 @@ export default function SignIn() {
       
       if (user) {
         // Set a cookie to help middleware know we just signed in
-        document.cookie = `recent-signin=true; path=/; max-age=60`; // Valid for 60 seconds
-        
-        // Set redirecting flag to prevent multiple redirects
-        setRedirecting(true);
+        document.cookie = `recent-signin=true; path=/; max-age=60`;
         
         // Wait longer for auth state to settle before redirecting
         setTimeout(() => {
+          setRedirecting(true);
           router.push('/host/dashboard');
-        }, 3000); // Increased from 1500ms to 3000ms
+        }, 3000);
       } else {
         throw new Error('No user returned from login');
       }
@@ -67,11 +68,11 @@ export default function SignIn() {
       console.error('Error in handleSubmit:', error);
       setError(error.message || 'Failed to sign in');
       setLoading(false);
-      setRedirecting(false); // Reset redirecting flag on error
     }
   };
 
-  // If already redirecting, show a loading state
+  // Mostra il caricamento solo se stiamo effettivamente reindirizzando
+  // NON mostrare lo stato di caricamento se siamo in attesa dell'auth
   if (redirecting) {
     return (
       <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10 text-center">
@@ -135,7 +136,7 @@ export default function SignIn() {
         <button
           type="submit"
           className="w-full bg-black text-white py-2 rounded hover:bg-gray-800 transition font-semibold"
-          disabled={loading || redirecting}
+          disabled={loading}
         >
           {loading ? 'Signing in...' : 'Sign in'}
         </button>
