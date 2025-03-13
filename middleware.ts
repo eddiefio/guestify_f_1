@@ -1,3 +1,4 @@
+// middleware.ts
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -6,21 +7,26 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
 
+  // Get auth session
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
-  // If there's no session and we're trying to access protected routes
+  // If trying to access a protected route without a session, redirect to login
   if (!session && req.nextUrl.pathname.startsWith('/host/')) {
-    return NextResponse.redirect(new URL('/auth/signin', req.url));
+    // Add debugging header to identify this middleware is handling the request
+    const url = req.nextUrl.clone();
+    url.pathname = '/auth/signin';
+    return NextResponse.redirect(url);
   }
 
   return res;
 }
 
+// Updated matcher pattern to avoid conflicts
 export const config = {
   matcher: [
     '/host/:path*',
-    '/((?!api/printqr-pdf|_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/|auth/signin|auth/signup|auth/reset-password|auth/callback).*)'
   ],
 };

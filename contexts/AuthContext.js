@@ -102,23 +102,23 @@ export function AuthProvider({ children }) {
                     setProfile(JSON.parse(cachedProfile));
                   }
                 }
-                
-                // Continuiamo a verificare la sessione in background
-                verifySessionWithServer();
               } else {
                 // Sessione scaduta, rimuoviamo dal localStorage
                 localStorage.removeItem('auth_session');
-                verifySessionWithServer();
               }
             } catch (e) {
               console.warn('Failed to parse cached session:', e);
-              verifySessionWithServer();
             }
-          } else {
-            verifySessionWithServer();
           }
-        } else {
-          verifySessionWithServer();
+        }
+        
+        // Always verify the session with the server, but don't wait for it to complete
+        verifySessionWithServer();
+        
+        // Set auth as initialized to prevent hanging
+        if (isSubscribed) {
+          setAuthInitialized(true);
+          // Still show loading until session check completes or times out
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
@@ -252,11 +252,11 @@ export function AuthProvider({ children }) {
     // Timeout di sicurezza per evitare caricamenti infiniti
     authTimeout = setTimeout(() => {
       if (isSubscribed && loading) {
-        console.warn('Auth loading timed out, forcing completion after 5 seconds');
+        console.warn('Auth loading timed out, forcing completion after 10 seconds');
         setLoading(false);
         setAuthInitialized(true);
       }
-    }, 5000);
+    }, 10000); // Increase from 5 to 10 seconds
 
     return () => {
       isSubscribed = false;
@@ -267,61 +267,59 @@ export function AuthProvider({ children }) {
     };
   }, [fetchUserProfile]);
 
-
-// Replace the signIn function with this improved version:
-
-const signIn = async (email, password) => {
-  try {
-    console.log('Signing in user:', email);
-    
-    const { data, error } = await fetchWithRetry(() => 
-      supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-    );
-    
-    if (error) {
-      // Improve error message for email confirmation
-      if (error.message.includes('Email not confirmed')) {
-        return { 
-          user: null, 
-          error: { 
-            ...error, 
-            message: 'Please check your email and confirm your account before signing in.' 
-          } 
-        };
+  // Sign in with email and password
+  const signIn = async (email, password) => {
+    try {
+      console.log('Signing in user:', email);
+      
+      const { data, error } = await fetchWithRetry(() => 
+        supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
+      );
+      
+      if (error) {
+        // Improve error message for email confirmation
+        if (error.message.includes('Email not confirmed')) {
+          return { 
+            user: null, 
+            error: { 
+              ...error, 
+              message: 'Please check your email and confirm your account before signing in.' 
+            } 
+          };
+        }
+        
+        console.error('Sign in error:', error);
+        throw error;
       }
       
-      console.error('Sign in error:', error);
-      throw error;
-    }
-    
-    console.log('Sign in successful:', data.user?.id);
-    
-    if (data.user) {
-      // Save session in localStorage
-      if (typeof window !== 'undefined' && data.session?.expires_at) {
-        localStorage.setItem('auth_session', JSON.stringify({
-          user: data.user,
-          expires_at: data.session.expires_at
-        }));
+      console.log('Sign in successful:', data.user?.id);
+      
+      if (data.user) {
+        // Salva la sessione in localStorage
+        if (typeof window !== 'undefined' && data.session?.expires_at) {
+          localStorage.setItem('auth_session', JSON.stringify({
+            user: data.user,
+            expires_at: data.session.expires_at
+          }));
+        }
+        
+        setUser(data.user);
+        
+        // Get profile - but don't block returning the result
+        fetchUserProfile(data.user.id).then(profileData => {
+          setProfile(profileData);
+        });
       }
       
-      setUser(data.user);
-      
-      // Get profile - but don't block returning the result
-      fetchUserProfile(data.user.id).then(profileData => {
-        setProfile(profileData);
-      });
+      return { user: data.user, error: null };
+    } catch (error) {
+      console.error('Error in signIn function:', error);
+      return { user: null, error };
     }
-    
-    return { user: data.user, error: null };
-  } catch (error) {
-    console.error('Error in signIn function:', error);
-    return { user: null, error };
-  }
-};
+  };
 
   // Sign up new user
   const signUp = async (email, password, metadata) => {
