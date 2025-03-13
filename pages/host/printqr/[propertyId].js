@@ -135,7 +135,7 @@ export default function PrintQR() {
       const printWindow = window.open('', '', 'height=650,width=600');
       printWindow.document.write('<html><head><title>Print QR Code</title>');
       
-      // Add CSS for A4 format with simplified layout
+      // Add CSS for A4 format with improved layout
       printWindow.document.write(`
         <style>
           @page {
@@ -148,42 +148,60 @@ export default function PrintQR() {
             width: 210mm;
             height: 297mm;
             background-color: white;
+            position: relative;
+            overflow: hidden;
+          }
+          .qr-frame-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 210mm;
+            height: 297mm;
             display: flex;
             justify-content: center;
             align-items: center;
           }
-          .qr-frame-container {
-            position: relative;
-            width: 180mm;
-            height: 250mm;
-          }
           .frame-image {
-            width: 100%;
-            height: 100%;
             position: absolute;
             top: 0;
             left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
           }
           .qr-code {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            /* QR code sized for optimal scanning */
-            width: 120mm;
-            height: 120mm;
+            /* QR code sized appropriately */
+            width: 100mm;
+            height: 100mm;
+            z-index: 2;
+          }
+          .property-name {
+            position: absolute;
+            bottom: 40mm;
+            width: 100%;
+            text-align: center;
+            font-family: Arial, sans-serif;
+            font-size: 16pt;
+            color: #5e2bff;
+            z-index: 3;
           }
         </style>
       `);
       
       printWindow.document.write('</head><body>');
       
-      // Just the QR code with frame - no header or footer text
+      // QR code with frame - in full page layout
       printWindow.document.write('<div class="qr-frame-container">');
       // The frame image
       printWindow.document.write(`<img src="${frameImagePath}" class="frame-image" alt="QR Frame" />`);
-      // The QR code positioned in the center of the frame, much larger
+      // The QR code positioned in the center of the frame
       printWindow.document.write(`<img src="${qrCodeDataURL}" class="qr-code" alt="QR Code" />`);
+      // Add property name
+      printWindow.document.write(`<div class="property-name">${propertyName}</div>`);
       printWindow.document.write('</div>');
       
       printWindow.document.write('</body></html>');
