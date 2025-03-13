@@ -96,27 +96,19 @@ export default function PrintQR() {
       setPrintingStatus('preparing');
       
       // Get the current session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
       
-      if (sessionError) {
-        throw new Error('Failed to get session');
+      if (!session) {
+        throw new Error('No active session');
       }
 
-      if (!session) {
-        // Try to refresh the session
-        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !refreshData.session) {
-          throw new Error('Authentication required');
-        }
-      }
-      
-      // Request PDF from server
+      // Request PDF from server with access token
       const response = await fetch(`/api/printqr-pdf?propertyId=${propertyId}`, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        }
       });
       
       if (!response.ok) {

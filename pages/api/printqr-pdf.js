@@ -5,14 +5,30 @@ import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
 
 export default async function handler(req, res) {
   try {
-    // Create authenticated Supabase client
+    // Get the authorization header
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Missing or invalid authorization header' });
+    }
+
+    // Extract the token
+    const token = authHeader.split(' ')[1];
+
+    // Create Supabase client with the token
     const supabase = createServerSupabaseClient({ req, res });
+    
+    // Set the session manually
+    await supabase.auth.setSession({
+      access_token: token,
+      refresh_token: ''
+    });
 
-    // Check if we have a session
-    const { data: { session } } = await supabase.auth.getSession();
+    // Get the user from the session
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
 
-    if (!session) {
-      return res.status(401).json({ error: 'Not authenticated' });
+    if (userError || !user) {
+      return res.status(401).json({ error: 'Invalid authentication token' });
     }
 
     const { propertyId } = req.query;
@@ -26,7 +42,7 @@ export default async function handler(req, res) {
       .from('apartments')
       .select('*')
       .eq('id', propertyId)
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
       .single();
 
     if (propertyError) {

@@ -11,11 +11,8 @@ export async function middleware(req: NextRequest) {
   } = await supabase.auth.getSession();
 
   // If there's no session and we're trying to access protected routes
-  if (!session && (req.nextUrl.pathname.startsWith('/api/') || req.nextUrl.pathname.startsWith('/host/'))) {
-    return NextResponse.json(
-      { error: 'Authentication required' },
-      { status: 401 }
-    );
+  if (!session && req.nextUrl.pathname.startsWith('/host/')) {
+    return NextResponse.redirect(new URL('/auth/signin', req.url));
   }
 
   return res;
@@ -23,7 +20,7 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    '/api/printqr-pdf',
-    '/host/:path*'
+    '/host/:path*',
+    '/((?!api/printqr-pdf|_next/static|_next/image|favicon.ico).*)',
   ],
 };
