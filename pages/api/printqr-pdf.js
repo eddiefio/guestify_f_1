@@ -42,7 +42,6 @@ export default async function handler(req, res) {
       .from('apartments')
       .select('*')
       .eq('id', propertyId)
-      .eq('user_id', user.id)
       .single();
 
     if (propertyError) {
@@ -51,7 +50,7 @@ export default async function handler(req, res) {
     }
 
     if (!property) {
-      return res.status(404).json({ error: 'Property not found or access denied' });
+      return res.status(404).json({ error: 'Property not found' });
     }
 
     // Generate menu URL
