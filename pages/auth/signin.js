@@ -1,5 +1,5 @@
 // pages/auth/signin.js
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import AuthLayout from '../../components/layout/AuthLayout';
@@ -10,47 +10,47 @@ export default function SignIn() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
   const router = useRouter();
   const { signIn, user } = useAuth();
 
-    // Check if the user just registered
-    useEffect(() => {
-      if (router.query.newRegistration === 'true') {
-        setSuccessMessage('Registration successful! Please check your email to confirm your account before signing in.');
-      }
-    }, [router.query]);
+  // Check if the user just registered
+  useEffect(() => {
+    if (router.query.newRegistration === 'true') {
+      setSuccessMessage('Registration successful! Please check your email to confirm your account before signing in.');
+    }
+  }, [router.query]);
 
-  // Se l'utente è già autenticato, redirect alla dashboard
-  if (user) {
-    router.push('/host/dashboard');
-    return null;
-  }
+  // If user is already authenticated, redirect to dashboard
+  useEffect(() => {
+    if (user) {
+      router.push('/host/dashboard');
+    }
+  }, [user, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-  
+
     try {
       console.log('Attempting login with:', email);
       const { user, error } = await signIn(email, password);
       
       if (error) {
-        if (error.message.includes('Email not confirmed')) {
-          throw new Error('Please check your email and click the confirmation link before signing in');
-        }
+        console.error('Login error:', error);
         throw error;
       }
-
+      
       if (user) {
         console.log('Login successful, user:', user.id);
         
-        // Memorizza l'ultimo login riuscito
+        // Store the last successful login
         if (typeof window !== 'undefined') {
           localStorage.setItem('lastLoginSuccess', new Date().toISOString());
         }
         
-        // Redirect con un breve ritardo
+        // Redirect with a short delay
         setTimeout(() => {
           console.log('Redirecting to dashboard...');
           router.push('/host/dashboard');
@@ -65,6 +65,9 @@ export default function SignIn() {
     }
   };
 
+  // If early return for redirection was here, replace it with the useEffect above
+  // Don't use: if (user) { router.push(...); return null; }
+
   return (
     <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10">
       <h2 className="text-2xl font-bold mb-2">Sign in</h2>
@@ -75,6 +78,12 @@ export default function SignIn() {
       {error && (
         <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
           {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="bg-green-100 text-green-700 p-3 rounded mb-4">
+          {successMessage}
         </div>
       )}
 
