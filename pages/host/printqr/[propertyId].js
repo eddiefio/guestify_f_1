@@ -101,11 +101,16 @@ export default function PrintQR() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to generate PDF');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate PDF');
       }
       
       // Get blob from response
       const blob = await response.blob();
+      
+      if (blob.size === 0) {
+        throw new Error('Generated PDF is empty');
+      }
       
       // Create URL for the blob
       const url = URL.createObjectURL(blob);
@@ -117,6 +122,7 @@ export default function PrintQR() {
     } catch (error) {
       console.error('Error creating PDF:', error);
       setPrintingStatus('error');
+      setError(error.message || 'Failed to generate PDF');
     }
   };
 

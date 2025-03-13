@@ -4,6 +4,10 @@ import QRCode from 'qrcode';
 import { supabase } from '../../lib/supabase';
 
 export default async function handler(req, res) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   const { propertyId } = req.query;
   
   if (!propertyId) {
@@ -12,13 +16,20 @@ export default async function handler(req, res) {
 
   try {
     // Fetch property details
-    const { data: property, error } = await supabase
+    const { data: property, error: propertyError } = await supabase
       .from('apartments')
       .select('name')
       .eq('id', propertyId)
       .single();
       
-    if (error) throw error;
+    if (propertyError) {
+      console.error('Supabase error:', propertyError);
+      return res.status(500).json({ error: 'Failed to fetch property details' });
+    }
+
+    if (!property) {
+      return res.status(404).json({ error: 'Property not found' });
+    }
     
     // Generate menu URL
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -40,37 +51,61 @@ export default async function handler(req, res) {
       margins: { top: 50, bottom: 50, left: 50, right: 50 }
     });
     
-    // Set PDF metadata
-    doc.info.Title = `Guestify Menu - ${property.name}`;
-    
     // Set response headers
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=guestify-qrcode-${propertyId}.pdf`);
     
+    // Handle PDF generation errors
+    doc.on('error', (err) => {
+      console.error('PDF generation error:', err);
+      res.status(500).json({ error: 'Failed to generate PDF' });
+    });
+
     // Pipe PDF to response
     doc.pipe(res);
     
     // Add content to PDF
-    doc.font('Helvetica-Bold').fontSize(24).fillColor('#5e2bff').text('Guestify Menu', { align: 'center' });
+    doc.font('Helvetica-Bold')
+       .fontSize(24)
+       .fillColor('#5e2bff')
+       .text('Guestify Menu', { align: 'center' });
+    
     doc.moveDown();
-    doc.font('Helvetica').fontSize(18).fillColor('#000000').text(property.name, { align: 'center' });
+    
+    doc.font('Helvetica')
+       .fontSize(18)
+       .fillColor('#000000')
+       .text(property.name, { align: 'center' });
+    
     doc.moveDown(2);
     
     // Add QR code image
     const qrSize = 300;
-    doc.image(qrCodeDataURL, doc.page.width/2 - qrSize/2, doc.y, {
-      width: qrSize
-    });
+    doc.image(qrCodeDataURL, 
+              doc.page.width/2 - qrSize/2, 
+              doc.y, 
+              { width: qrSize });
     
     doc.moveDown(2);
-    doc.fontSize(12).fillColor('#666666').text('Scan this QR code to access the menu', { align: 'center' });
+    
+    doc.fontSize(12)
+       .fillColor('#666666')
+       .text('Scan this QR code to access the menu', { align: 'center' });
+    
     doc.moveDown();
-    doc.fontSize(10).fillColor('#999999').text(menuUrl, { align: 'center' });
+    
+    doc.fontSize(10)
+       .fillColor('#999999')
+       .text(menuUrl, { align: 'center' });
     
     // Finalize PDF
     doc.end();
+
   } catch (error) {
     console.error('Error generating PDF:', error);
-    res.status(500).json({ error: 'Failed to generate PDF' });
+    // Ensure we haven't sent headers yet before sending error response
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to generate PDF: ' + error.message });
+    }
   }
 }
