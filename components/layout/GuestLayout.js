@@ -26,11 +26,11 @@ export default function GuestLayout({ children, title = 'Guestify - Guest' }) {
                   <Image 
                     src="/images/guestify_logo.png" 
                     alt="Guestify Logo" 
-                    width={80}
-                    height={80}
+                    width={160}
+                    height={100}
                     quality={100}
                     priority
-                    className="w-20 h-20"
+                    className="w-40 h-24"
                     style={{ objectFit: 'contain' }}
                   />
                 </span>
@@ -39,11 +39,11 @@ export default function GuestLayout({ children, title = 'Guestify - Guest' }) {
               <Image 
                 src="/images/guestify_logo.png" 
                 alt="Guestify Logo" 
-                width={80}
-                height={80}
+                width={160}
+                height={100}
                 quality={100}
                 priority
-                className="w-20 h-20"
+                className="w-40 h-24"
                 style={{ objectFit: 'contain' }}
               />
             )}
