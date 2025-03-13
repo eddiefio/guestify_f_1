@@ -30,10 +30,13 @@ export default function StripeRedirect() {
         
         console.log('Received Stripe account ID:', account_id);
 
+        // Aggiorna il profilo con l'account ID di Stripe
         const { data, error } = await supabase
           .from('profiles')
           .update({ stripe_account_id: account_id })
-          .eq('id', user.id);
+          .eq('id', user.id)
+          .select()
+          .single();
 
         if (error) {
           console.error('Error updating profile:', error);

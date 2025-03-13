@@ -19,26 +19,45 @@ export default function ConnectStripe() {
   useEffect(() => {
     if (!user || !profile) return;
     
-    // If the profile has a stripe_account_id, redirect to the appropriate page
-    if (profile.stripe_account_id) {
-      console.log('User already has Stripe connected:', profile.stripe_account_id);
-      setRedirecting(true);
-      
-      // Check if we have a stored property ID for QR
-      const propertyId = localStorage.getItem('property_id_for_qr');
-      
-      // Redirect after a short delay
-      setTimeout(() => {
-        if (propertyId) {
-          console.log('Redirecting to PrintQR page');
-          localStorage.removeItem('property_id_for_qr');
-          router.push(`/host/printqr/${propertyId}`);
-        } else {
-          console.log('Redirecting to dashboard');
-          router.push('/host/dashboard');
+    const checkStripeStatus = async () => {
+      try {
+        // Verifica aggiuntiva nel database
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('stripe_account_id')
+          .eq('id', user.id)
+          .single();
+        
+        if (profileError) {
+          throw profileError;
         }
-      }, 500);
-    }
+
+        // If the profile has a stripe_account_id, redirect to the appropriate page
+        if (profileData.stripe_account_id) {
+          console.log('User already has Stripe connected:', profileData.stripe_account_id);
+          setRedirecting(true);
+          
+          // Check if we have a stored property ID for QR
+          const propertyId = localStorage.getItem('property_id_for_qr');
+          
+          // Redirect after a short delay
+          setTimeout(() => {
+            if (propertyId) {
+              console.log('Redirecting to PrintQR page');
+              localStorage.removeItem('property_id_for_qr');
+              router.push(`/host/printqr/${propertyId}`);
+            } else {
+              console.log('Redirecting to dashboard');
+              router.push('/host/dashboard');
+            }
+          }, 500);
+        }
+      } catch (error) {
+        console.error('Error checking Stripe status:', error);
+      }
+    };
+
+    checkStripeStatus();
   }, [user, profile, router]);
 
   // Get the session data when the page loads

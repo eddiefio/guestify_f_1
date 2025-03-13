@@ -26,59 +26,62 @@ export default function PrintQR() {
   useEffect(() => {
     if (!user || !profile || !router.isReady) return;
 
-    console.log("PrintQR - Checking Stripe account");
-    console.log("Profile:", profile);
-    
-    // Check if user has connected Stripe
-    if (!profile.stripe_account_id) {
-      console.log('No Stripe account found, redirecting to connect-stripe');
-      setIsCheckingStripe(false);
-      
-      // Store property ID for return after Stripe connection
-      localStorage.setItem('property_id_for_qr', propertyId);
-      router.push(`/host/connect-stripe`);
-      return;
-    }
-    
-    setIsCheckingStripe(false);
-    
-    const fetchData = async () => {
+    const checkStripeAndFetchData = async () => {
       try {
+        console.log("PrintQR - Checking Stripe account");
+        console.log("Profile:", profile);
+        
+        // Verifica aggiuntiva nel database
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('stripe_account_id')
+          .eq('id', user.id)
+          .single();
+        
+        if (profileError) {
+          throw profileError;
+        }
+
+        // Check if user has connected Stripe
+        if (!profileData.stripe_account_id) {
+          console.log('No Stripe account found, redirecting to connect-stripe');
+          setIsCheckingStripe(false);
+          
+          // Store property ID for return after Stripe connection
+          localStorage.setItem('property_id_for_qr', propertyId);
+          router.push(`/host/connect-stripe`);
+          return;
+        }
+        
+        setIsCheckingStripe(false);
+        
         // Fetch property details
         const { data: property, error: propError } = await supabase
           .from('apartments')
           .select('name')
           .eq('id', propertyId)
           .single();
-          
+
         if (propError) throw propError;
+
         setPropertyName(property.name);
         
-        // Generate menu URL
-        const baseUrl = window.location.origin;
-        const url = `${baseUrl}/guest/menu/${propertyId}`;
-        setMenuUrl(url);
-        
         // Generate QR code
-        const qrDataUrl = await QRCode.toDataURL(url, {
-          width: 400,
-          margin: 1,
-          color: {
-            dark: '#5e2bff',
-            light: '#ffffff'
-          }
-        });
+        const menuUrl = `${window.location.origin}/menu/${propertyId}`;
+        setMenuUrl(menuUrl);
         
-        setQrCodeDataURL(qrDataUrl);
-      } catch (err) {
-        console.error('Error generating QR code:', err);
-        setError('Failed to generate QR code');
-      } finally {
+        const qrCode = await QRCode.toDataURL(menuUrl);
+        setQrCodeDataURL(qrCode);
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Error:', error);
+        setError(error.message);
         setLoading(false);
       }
     };
 
-    fetchData();
+    checkStripeAndFetchData();
   }, [propertyId, user, profile, router]);
 
   const handlePrintQR = async () => {
