@@ -67,10 +67,17 @@ export default function PrintQR() {
         setPropertyName(property.name);
         
         // Generate QR code
-        const menuUrl = `${window.location.origin}/menu/${propertyId}`;
+        const menuUrl = `${window.location.origin}/guest/menu/${propertyId}`;
         setMenuUrl(menuUrl);
         
-        const qrCode = await QRCode.toDataURL(menuUrl);
+        const qrCode = await QRCode.toDataURL(menuUrl, {
+          width: 300,
+          margin: 1,
+          color: {
+            dark: '#5e2bff',
+            light: '#ffffff'
+          }
+        });
         setQrCodeDataURL(qrCode);
         
         setLoading(false);
