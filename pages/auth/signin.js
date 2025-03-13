@@ -70,8 +70,8 @@ export default function SignIn() {
       if (error) throw error;
       
       if (user) {
-        // Set a cookie to help middleware know we just signed in
-        document.cookie = `recent-signin=true; path=/; max-age=60; SameSite=Lax`;
+        // Set a cookie with a much longer lifetime (24 hours)
+        document.cookie = `recent-signin=true; path=/; max-age=86400; SameSite=Lax`;
         
         // Short delay before redirecting to ensure auth state is settled
         setTimeout(() => {

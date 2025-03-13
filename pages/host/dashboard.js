@@ -11,36 +11,153 @@ function Dashboard() {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { user } = useAuth();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [stripeRedirectComplete, setStripeRedirectComplete] = useState(false);
+  const { user, profile } = useAuth();
   const router = useRouter();
 
+  // Check for Stripe redirect
   useEffect(() => {
-    if (!user) return;
+    // Check URL for Stripe redirect parameters
+    const queryParams = new URLSearchParams(window.location.search);
+    const isStripeRedirect = queryParams.has('setup_intent') || 
+                             queryParams.has('setup_intent_client_secret') || 
+                             window.location.pathname.includes('/stripe-callback');
+    
+    if (isStripeRedirect && user && !stripeRedirectComplete) {
+      console.log('Detected Stripe redirect, checking account ID');
+      
+      // If this is a Stripe redirect, check if the profile has a stripe_account_id
+      const checkStripeAccount = async () => {
+        try {
+          // Verify the latest profile data from the database
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('stripe_account_id')
+            .eq('id', user.id)
+            .single();
+            
+          if (error) throw error;
+          
+          if (data && data.stripe_account_id) {
+            console.log('Stripe account is connected:', data.stripe_account_id);
+            
+            // Get the return URL from localStorage
+            const returnUrl = localStorage.getItem('stripe_return_url');
+            if (returnUrl) {
+              localStorage.removeItem('stripe_return_url');
+              console.log('Redirecting to:', returnUrl);
+              router.push(returnUrl);
+              return;
+            }
+          } else {
+            console.log('No Stripe account ID found in profile');
+          }
+          
+          setStripeRedirectComplete(true);
+        } catch (err) {
+          console.error('Error checking Stripe account:', err);
+          setStripeRedirectComplete(true);
+        }
+      };
+      
+      checkStripeAccount();
+    }
+  }, [user, router, stripeRedirectComplete]);
 
-    const fetchProperties = async () => {
+  useEffect(() => {
+    let isMounted = true;
+    let fetchTimeout;
+
+    async function fetchProperties() {
       try {
-        const { data, error } = await supabase
-          .from('properties')
-          .select('*')
-          .eq('user_id', user.id);
+        // Verify explicitly if the user is available
+        if (!user || !user.id) {
+          if (isMounted) {
+            console.log('No valid user found in dashboard, not fetching properties');
+            setProperties([]);
+            setLoading(false);
+          }
+          return;
+        }
 
-        if (error) throw error;
-        setProperties(data || []);
+        // Set a timeout to ensure we don't get stuck loading
+        fetchTimeout = setTimeout(() => {
+          if (isMounted && loading) {
+            console.warn('Properties fetch timeout - forcing completion');
+            setLoading(false);
+            setError('Data loading timed out. Please refresh the page.');
+          }
+        }, 10000); // 10 seconds timeout
+
+        console.log('Fetching properties for user:', user.id);
+        const { data, error } = await supabase
+          .from('apartments')
+          .select('*')
+          .eq('host_id', user.id);
+
+        if (error) {
+          console.error('Supabase error:', error);
+          throw error;
+        }
+
+        console.log('Fetched properties:', data ? data.length : 0);
+        
+        if (isMounted) {
+          setProperties(data || []);
+          setLoading(false);
+        }
       } catch (err) {
         console.error('Error fetching properties:', err);
-        setError(err.message);
+        if (isMounted) {
+          setError('Failed to load properties: ' + (err.message || 'Unknown error'));
+          setLoading(false);
+        }
       } finally {
-        setLoading(false);
+        // Always make sure to clear the timeout
+        if (fetchTimeout) {
+          clearTimeout(fetchTimeout);
+        }
       }
-    };
+    }
 
-    fetchProperties();
-  }, [user]);
+    // Start fetching data only if there is a valid user and we are in loading state
+    if (loading) {
+      fetchProperties();
+    }
+
+    return () => {
+      isMounted = false;
+      clearTimeout(fetchTimeout);
+    };
+  }, [user, loading]);
+
+  // Filter properties based on search term
+  const filteredProperties = properties.filter(prop => 
+    prop.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleRefresh = () => {
+    setLoading(true);
+    setError(null);
+  };
 
   return (
     <div>
       <h2 className="text-lg sm:text-2xl font-bold text-gray-800 mb-4">Dashboard</h2>
       <p className="text-sm sm:text-base mb-4">Here you can view your properties.</p>
+
+      {/* Search Bar */}
+      <div className="mb-4">
+        <input
+          type="text"
+          id="propertySearchInput"
+          placeholder="Search properties by name..."
+          className="w-full border px-3 py-2 rounded"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
 
       {loading ? (
         <div className="text-center py-8">
@@ -50,16 +167,22 @@ function Dashboard() {
       ) : error ? (
         <div className="bg-red-100 text-red-700 p-4 rounded mb-4">
           <p>{error}</p>
+          <button 
+            onClick={handleRefresh}
+            className="mt-2 bg-red-200 hover:bg-red-300 text-red-800 px-3 py-1 rounded text-sm"
+          >
+            Try Again
+          </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {properties.length > 0 ? (
-            properties.map((prop) => (
-              <div key={prop.id} className="bg-white p-4 rounded-xl shadow-sm border flex flex-col">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" id="propertyGrid">
+          {filteredProperties.length > 0 ? (
+            filteredProperties.map((prop) => (
+              <div key={prop.id} className="property-card bg-white p-4 rounded-xl shadow-sm border flex flex-col">
                 {/* Header card: Name/Address & Edit/Delete */}
                 <div className="flex justify-between items-center mb-2">
                   <div>
-                    <h3 className="text-base sm:text-lg font-bold text-gray-800">{prop.name}</h3>
+                    <h3 className="property-name text-base sm:text-lg font-bold text-gray-800">{prop.name}</h3>
                     <p className="text-xs sm:text-sm text-gray-500">{prop.address}</p>
                   </div>
                   <div className="flex space-x-3">

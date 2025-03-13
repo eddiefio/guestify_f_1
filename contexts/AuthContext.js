@@ -130,28 +130,37 @@ export function AuthProvider({ children }) {
       }
     };
     
-    // Verifica la sessione con il server
-    const verifySessionWithServer = async () => {
-      try {
-        // Ottieni la sessione corrente
-        const { data: { session }, error: sessionError } = await fetchWithRetry(
-          () => supabase.auth.getSession()
-        );
-        
-        if (sessionError) {
-          console.error('Error getting session:', sessionError);
-          if (isSubscribed) {
-            setLoading(false);
-            return;
-          }
-        }
-        
-        if (!isSubscribed) return;
-        
-        if (session?.user) {
-          // Check if session is expired
-          if (session.expires_at && new Date(session.expires_at) <= new Date()) {
-            console.log('Session expired, signing out');
+// contexts/AuthContext.js - Just the function that needs to be updated
+
+const verifySessionWithServer = async () => {
+  try {
+    // Get current session with retry
+    const { data: { session }, error: sessionError } = await fetchWithRetry(
+      () => supabase.auth.getSession(),
+      3,  // Max retries
+      1000 // Delay between retries
+    );
+    
+    if (sessionError) {
+      console.error('Error getting session:', sessionError);
+      if (isSubscribed) {
+        setLoading(false);
+        return;
+      }
+    }
+    
+    if (!isSubscribed) return;
+    
+    if (session?.user) {
+      // Check if session is expired
+      if (session.expires_at && new Date(session.expires_at) <= new Date()) {
+        console.log('Session expired, refreshing token');
+        try {
+          // Try to refresh the token instead of immediately signing out
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession(session);
+          
+          if (refreshError || !refreshData.session) {
+            console.log('Token refresh failed, signing out');
             await supabase.auth.signOut();
             setUser(null);
             setProfile(null);
@@ -161,47 +170,81 @@ export function AuthProvider({ children }) {
               localStorage.removeItem('auth_session');
             }
           } else {
-            console.log('Found valid session for user:', session.user.id);
+            // Successfully refreshed the token
+            console.log('Token refreshed successfully');
+            const refreshedSession = refreshData.session;
             
-            // Salva la sessione in localStorage
-            if (typeof window !== 'undefined' && session.expires_at) {
+            if (typeof window !== 'undefined' && refreshedSession.expires_at) {
               localStorage.setItem('auth_session', JSON.stringify({
-                user: session.user,
-                expires_at: session.expires_at
+                user: refreshedSession.user,
+                expires_at: refreshedSession.expires_at
               }));
             }
             
-            setUser(session.user);
+            setUser(refreshedSession.user);
+            
+            // Update session cookies to help middleware
+            document.cookie = `supabase-auth=true; path=/; max-age=86400; SameSite=Lax`;
             
             // Fetch user profile
-            const profileData = await fetchUserProfile(session.user.id);
+            const profileData = await fetchUserProfile(refreshedSession.user.id);
             if (isSubscribed) {
               setProfile(profileData);
             }
           }
-        } else {
-          console.log('No valid session found');
-          if (isSubscribed) {
-            setUser(null);
-            setProfile(null);
-            
-            // Pulisci localStorage
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('auth_session');
-            }
-          }
+        } catch (refreshErr) {
+          console.error('Error during token refresh:', refreshErr);
+          // Fall back to signout
+          await supabase.auth.signOut();
+          setUser(null);
+          setProfile(null);
+        }
+      } else {
+        console.log('Found valid session for user:', session.user.id);
+        
+        // Save session to localStorage
+        if (typeof window !== 'undefined' && session.expires_at) {
+          localStorage.setItem('auth_session', JSON.stringify({
+            user: session.user,
+            expires_at: session.expires_at
+          }));
+          
+          // Set a long-lived cookie for middleware
+          document.cookie = `supabase-auth=true; path=/; max-age=86400; SameSite=Lax`;
         }
         
+        setUser(session.user);
+        
+        // Fetch user profile
+        const profileData = await fetchUserProfile(session.user.id);
         if (isSubscribed) {
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Error verifying session:', error);
-        if (isSubscribed) {
-          setLoading(false);
+          setProfile(profileData);
         }
       }
-    };
+    } else {
+      console.log('No valid session found');
+      if (isSubscribed) {
+        setUser(null);
+        setProfile(null);
+        
+        // Clear localStorage and cookies
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('auth_session');
+          document.cookie = 'supabase-auth=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        }
+      }
+    }
+    
+    if (isSubscribed) {
+      setLoading(false);
+    }
+  } catch (error) {
+    console.error('Error verifying session:', error);
+    if (isSubscribed) {
+      setLoading(false);
+    }
+  }
+};
 
     // Imposta un listener per i cambiamenti di autenticazione
     const setupAuthListener = async () => {

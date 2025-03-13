@@ -22,6 +22,12 @@ export async function middleware(req: NextRequest) {
     if (recentSignin) {
       return res;
     }
+
+    // Check if there's a stored auth session in cookies
+    const authCookie = req.cookies.get('supabase-auth');
+    if (authCookie) {
+      return res; // Let the request proceed if we have an auth cookie
+    }
     
     // Otherwise redirect to sign-in
     const url = req.nextUrl.clone();
@@ -32,10 +38,9 @@ export async function middleware(req: NextRequest) {
   return res;
 }
 
-// Updated matcher pattern to avoid conflicts
+// Updated matcher pattern to only check host routes
 export const config = {
   matcher: [
-    '/host/:path*',
-    '/((?!_next/static|_next/image|favicon.ico|api/|auth/signin|auth/signup|auth/reset-password|auth/callback).*)'
+    '/host/:path*',  // Only apply to host routes
   ],
 };
