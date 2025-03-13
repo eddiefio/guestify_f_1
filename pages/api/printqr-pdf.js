@@ -1,4 +1,6 @@
 import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
+import PDFDocument from 'pdfkit';
+import QRCode from 'qrcode';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -9,12 +11,8 @@ export default async function handler(req, res) {
     const supabase = createServerSupabaseClient({ req, res });
     const { propertyId } = req.query;
 
-    console.log('PropertyId requested:', propertyId);
-
     // Verifica autenticazione
     const { data: { session }, error: authError } = await supabase.auth.getSession();
-    console.log('Session:', session?.user?.id);
-    console.log('Auth error:', authError);
 
     if (authError || !session) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -23,25 +21,14 @@ export default async function handler(req, res) {
     // Fetch property details
     const { data: property, error: propertyError } = await supabase
       .from('apartments')
-      .select('*')
+      .select('id, host_id, name, address, city')
       .eq('id', propertyId)
       .single();
 
-    console.log('Property:', property);
-    console.log('Property error:', propertyError);
-
-    if (propertyError) {
-      console.error('Property error:', propertyError);
-      return res.status(500).json({ error: `Database error: ${propertyError.message}` });
-    }
-
-    if (!property) {
+    if (propertyError || !property) {
       return res.status(404).json({ error: 'Property not found' });
     }
 
-    // Verifica che l'utente sia il proprietario
-    console.log('Comparing host_id:', property.host_id, 'with user_id:', session.user.id);
-    
     if (property.host_id !== session.user.id) {
       return res.status(403).json({ error: 'Access denied' });
     }
@@ -50,11 +37,54 @@ export default async function handler(req, res) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://app.guestify.shop';
     const menuUrl = `${baseUrl}/guest/menu/${propertyId}`;
 
-    // Restituisci i dati necessari
-    return res.status(200).json({ 
-      property,
-      menuUrl
+    // Genera il QR code come data URL
+    const qrCodeDataUrl = await QRCode.toDataURL(menuUrl, {
+      width: 300,
+      margin: 1,
+      color: {
+        dark: '#5e2bff',
+        light: '#ffffff'
+      }
     });
+
+    // Configura gli headers per il download del PDF
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=guestify-qrcode.pdf');
+
+    // Crea un nuovo documento PDF
+    const doc = new PDFDocument({
+      size: 'A4',
+      margin: 50
+    });
+
+    // Pipe il PDF direttamente alla response
+    doc.pipe(res);
+
+    // Aggiungi contenuto al PDF
+    doc.fontSize(24)
+       .text('Guestify Menu', { align: 'center' });
+
+    doc.fontSize(18)
+       .text(property.name, { align: 'center' });
+
+    // Converti il data URL in Buffer per l'immagine
+    const qrCodeImage = Buffer.from(qrCodeDataUrl.split(',')[1], 'base64');
+
+    // Aggiungi il QR code
+    doc.image(qrCodeImage, {
+      fit: [300, 300],
+      align: 'center',
+      valign: 'center'
+    });
+
+    doc.fontSize(12)
+       .text('Scan this QR code to access the menu', { align: 'center' });
+
+    doc.fontSize(10)
+       .text(menuUrl, { align: 'center', color: 'blue' });
+
+    // Finalizza il PDF
+    doc.end();
 
   } catch (error) {
     console.error('Error:', error);
