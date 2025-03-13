@@ -134,16 +134,38 @@ export default function PrintQR() {
       // Open the print dialog
       const printWindow = window.open('', '', 'height=650,width=600');
       printWindow.document.write('<html><head><title>Print QR Code</title>');
-      // Add some CSS for positioning the QR code within the frame
+      
+      // Add CSS for A4 format and proper QR code sizing
       printWindow.document.write(`
         <style>
-          body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
-          .container { text-align: center; padding: 20px; }
-          .qr-frame-container { 
-            position: relative; 
-            width: 500px; 
-            height: 500px; 
-            margin: 20px auto; 
+          @page {
+            size: A4;
+            margin: 0;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            width: 210mm;
+            height: 297mm;
+            background-color: white;
+          }
+          .container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            padding: 20mm;
+            box-sizing: border-box;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 10mm;
+          }
+          .qr-frame-container {
+            position: relative;
+            width: 170mm;
+            height: 170mm;
+            margin: 0 auto;
           }
           .frame-image {
             width: 100%;
@@ -157,15 +179,26 @@ export default function PrintQR() {
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 200px;
-            height: 200px;
+            /* QR code size reduced to 1/3 */
+            width: 70px;
+            height: 70px;
+          }
+          .footer {
+            text-align: center;
+            margin-top: 10mm;
+            font-size: 10pt;
           }
         </style>
       `);
+      
       printWindow.document.write('</head><body>');
       printWindow.document.write('<div class="container">');
-      printWindow.document.write('<h1 style="color:#5e2bff;">Guestify Menu</h1>');
-      printWindow.document.write('<h2 style="color:#333;">' + propertyName + '</h2>');
+      
+      // Header
+      printWindow.document.write('<div class="header">');
+      printWindow.document.write('<h1 style="color:#5e2bff; margin-bottom: 5mm;">Guestify Menu</h1>');
+      printWindow.document.write('<h2 style="color:#333; margin-top: 0;">' + propertyName + '</h2>');
+      printWindow.document.write('</div>');
       
       // QR code with frame
       printWindow.document.write('<div class="qr-frame-container">');
@@ -175,9 +208,13 @@ export default function PrintQR() {
       printWindow.document.write(`<img src="${qrCodeDataURL}" class="qr-code" alt="QR Code" />`);
       printWindow.document.write('</div>');
       
+      // Footer
+      printWindow.document.write('<div class="footer">');
       printWindow.document.write('<p style="color:#666;">Scan this QR code to access the menu</p>');
-      printWindow.document.write('<p style="color:#999;font-size:12px;">' + menuUrl + '</p>');
+      printWindow.document.write('<p style="color:#999;font-size:8pt;">' + menuUrl + '</p>');
       printWindow.document.write('</div>');
+      
+      printWindow.document.write('</div>'); // Close container
       printWindow.document.write('</body></html>');
       printWindow.document.close();
       printWindow.focus();
