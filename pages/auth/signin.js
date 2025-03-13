@@ -57,11 +57,8 @@ export default function SignIn() {
           localStorage.setItem('lastLoginSuccess', new Date().toISOString());
         }
         
-        // Redirect with a short delay
-        setTimeout(() => {
-          console.log('Redirecting to dashboard...');
-          router.push('/host/dashboard');
-        }, 800);
+        // Modifica: usa replace invece di push e rimuovi il timeout
+        router.replace('/host/dashboard');
       } else {
         throw new Error('No user returned from login');
       }

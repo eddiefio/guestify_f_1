@@ -13,12 +13,12 @@ export default function ProtectedRoute({ children }) {
     const timeoutId = setTimeout(() => {
       if (isVerifying) {
         console.warn('Route verification timed out, forcing completion');
-        
-        // If we're still loading after timeout, redirect to login
-        if (!user) {
-          router.push('/auth/signin');
-        }
         setIsVerifying(false);
+        
+        // Se siamo ancora in caricamento dopo il timeout, reindirizza al login
+        if (!user) {
+          router.replace('/auth/signin');
+        }
       }
     }, 5000); // 5 seconds timeout
 
@@ -27,7 +27,7 @@ export default function ProtectedRoute({ children }) {
       if (!user) {
         // Se non c'è un utente, reindirizza alla pagina di login
         console.log('No user found, redirecting to login');
-        router.push('/auth/signin');
+        router.replace('/auth/signin');
       } else {
         // Utente verificato, non è più necessario verificare
         setIsVerifying(false);
