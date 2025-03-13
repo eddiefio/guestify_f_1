@@ -42,6 +42,7 @@ export default async function handler(req, res) {
       .from('apartments')
       .select('*')
       .eq('id', propertyId)
+      .eq('host_id', user.id)  // Cambiato da apartment_id a host_id
       .single();
 
     if (propertyError) {
@@ -50,7 +51,7 @@ export default async function handler(req, res) {
     }
 
     if (!property) {
-      return res.status(404).json({ error: 'Property not found' });
+      return res.status(404).json({ error: 'Property not found or access denied' });
     }
 
     // Generate menu URL
