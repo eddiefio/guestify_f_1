@@ -18,15 +18,23 @@ export default function StripeRedirect() {
       try {
         console.log('Processing Stripe redirect with user:', user.id);
         
-        // Generate a Stripe account ID (for demonstration)
-        // In a real implementation, you would get this from Stripe API or URL params
-        const stripeAccountId = `acct_${Math.random().toString(36).substring(2, 15)}`;
-        console.log('Generated Stripe account ID:', stripeAccountId);
+        // Get the account_id from the URL query parameters
+        const { account_id, success, error: errorFlag } = router.query;
+        
+        if (errorFlag) {
+          throw new Error('Error during Stripe onboarding process');
+        }
+        
+        if (!account_id) {
+          throw new Error('No Stripe account ID provided in redirect');
+        }
+        
+        console.log('Received Stripe account ID:', account_id);
 
-        // Update user profile with Stripe account ID
+        // Update user profile with real Stripe account ID
         const { data, error } = await supabase
           .from('profiles')
-          .update({ stripe_account_id: stripeAccountId })
+          .update({ stripe_account_id: account_id })
           .eq('id', user.id);
 
         if (error) {
