@@ -17,7 +17,7 @@ export default function GuestLayout({ children, title = 'Guestify - Guest' }) {
       </Head>
       
       {/* Header */}
-      <header className="bg-[#5e2bff] p-4 shadow-md rounded-b-xl">
+      <header className="bg-[#5e2bff] py-2 px-4 shadow-md rounded-b-xl">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div>
             {propertyId ? (
