@@ -10,17 +10,18 @@
     },
     "dependencies": {
         "@fortawesome/fontawesome-free": "^6.7.2",
-        "@supabase/auth-helpers-nextjs": "^0.10.0",
+        "@supabase/auth-helpers-nextjs": "latest",
         "@supabase/ssr": "latest",
         "@supabase/supabase-js": "^2.49.1",
         "html5-qrcode": "^2.3.8",
         "next": "^14.0.0",
-        "pdfkit": "^0.16.0",
-        "qrcode": "^1.5.4",
+        "pdfkit": "latest",
+        "qrcode": "latest"
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
         "recharts": "^2.15.1",
         "stripe": "^12.3.0"
+        
     },
     "devDependencies": {
         "autoprefixer": "^10.4.14",
