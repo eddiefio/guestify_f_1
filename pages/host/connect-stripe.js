@@ -19,19 +19,20 @@ export default function ConnectStripe() {
   useEffect(() => {
     if (!user || !profile) return;
     
-    // If the profile has a stripe_account_id, redirect to the return URL or dashboard
+    // If the profile has a stripe_account_id, redirect to the appropriate page
     if (profile.stripe_account_id) {
       console.log('User already has Stripe connected:', profile.stripe_account_id);
       setRedirecting(true);
       
-      // Get returnUrl from query parameters
-      const { returnUrl } = router.query;
+      // Check if we have a stored property ID for QR
+      const propertyId = localStorage.getItem('property_id_for_qr');
       
       // Redirect after a short delay
       setTimeout(() => {
-        if (returnUrl) {
-          console.log('Redirecting to:', returnUrl);
-          router.push(returnUrl);
+        if (propertyId) {
+          console.log('Redirecting to PrintQR page');
+          localStorage.removeItem('property_id_for_qr');
+          router.push(`/host/printqr/${propertyId}`);
         } else {
           console.log('Redirecting to dashboard');
           router.push('/host/dashboard');

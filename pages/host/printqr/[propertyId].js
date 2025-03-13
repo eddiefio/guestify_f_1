@@ -24,7 +24,6 @@ export default function PrintQR() {
   const { user, profile } = useAuth();
 
   useEffect(() => {
-    // We need both user and profile to be loaded and router to be ready
     if (!user || !profile || !router.isReady) return;
 
     console.log("PrintQR - Checking Stripe account");
@@ -35,13 +34,12 @@ export default function PrintQR() {
       console.log('No Stripe account found, redirecting to connect-stripe');
       setIsCheckingStripe(false);
       
-      // Store current page as return URL
-      const returnUrl = `/host/printqr/${propertyId}`;
-      router.push(`/host/connect-stripe?returnUrl=${encodeURIComponent(returnUrl)}`);
+      // Store property ID for return after Stripe connection
+      localStorage.setItem('property_id_for_qr', propertyId);
+      router.push(`/host/connect-stripe`);
       return;
     }
     
-    // User has Stripe, continue with loading data
     setIsCheckingStripe(false);
     
     const fetchData = async () => {

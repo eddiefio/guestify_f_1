@@ -18,7 +18,6 @@ export default function StripeRedirect() {
       try {
         console.log('Processing Stripe redirect with user:', user.id);
         
-        // Get the account_id from the URL query parameters
         const { account_id, success, error: errorFlag } = router.query;
         
         if (errorFlag) {
@@ -31,7 +30,6 @@ export default function StripeRedirect() {
         
         console.log('Received Stripe account ID:', account_id);
 
-        // Update user profile with real Stripe account ID
         const { data, error } = await supabase
           .from('profiles')
           .update({ stripe_account_id: account_id })
@@ -46,14 +44,12 @@ export default function StripeRedirect() {
         setStatus('success');
         setMessage('Your Stripe account has been successfully connected!');
 
-        // Get the returnUrl from localStorage
-        const returnUrl = localStorage.getItem('stripe_return_url');
-        
-        // Redirect after a short delay
+        // Redirect to printqr page after a short delay
         setTimeout(() => {
-          if (returnUrl) {
-            localStorage.removeItem('stripe_return_url');
-            router.push(returnUrl);
+          const propertyId = localStorage.getItem('property_id_for_qr');
+          if (propertyId) {
+            localStorage.removeItem('property_id_for_qr');
+            router.push(`/host/printqr/${propertyId}`);
           } else {
             router.push('/host/dashboard');
           }
