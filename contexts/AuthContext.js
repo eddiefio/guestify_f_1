@@ -359,12 +359,13 @@ export function AuthProvider({ children }) {
           }));
         }
         
+        // IMPORTANT: Remove these lines to prevent auto-login after signup
         // Set user immediately after signup
-        setUser(data.user);
-        setProfile({
-          id: data.user.id,
-          ...metadata
-        });
+        // setUser(data.user);
+        // setProfile({
+        //   id: data.user.id,
+        //   ...metadata
+        // });
       }
       
       return { user: data.user, error: null };

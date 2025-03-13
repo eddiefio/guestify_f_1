@@ -39,6 +39,11 @@ export default function SignUp() {
       }
       
       if (user) {
+        // Set a flag to show the email confirmation message
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('showConfirmEmailMessage', 'true');
+        }
+        
         // Redirect to login page
         router.push('/auth/signin?newRegistration=true');
       }

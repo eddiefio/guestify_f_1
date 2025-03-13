@@ -17,7 +17,14 @@ export default function SignIn() {
   // Check if the user just registered
   useEffect(() => {
     if (router.query.newRegistration === 'true') {
-      setSuccessMessage('Registration successful! Please check your email to confirm your account before signing in.');
+      // Check if this is right after signup (using the localStorage flag)
+      const showMessage = typeof window !== 'undefined' && localStorage.getItem('showConfirmEmailMessage') === 'true';
+      
+      if (showMessage) {
+        setSuccessMessage('Registration successful! Please check your email to confirm your account before signing in.');
+        // Remove the flag after showing the message to ensure it's only shown once
+        localStorage.removeItem('showConfirmEmailMessage');
+      }
     }
   }, [router.query]);
 
@@ -64,9 +71,6 @@ export default function SignIn() {
       setLoading(false);
     }
   };
-
-  // If early return for redirection was here, replace it with the useEffect above
-  // Don't use: if (user) { router.push(...); return null; }
 
   return (
     <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10">
