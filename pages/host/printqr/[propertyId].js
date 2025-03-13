@@ -95,12 +95,20 @@ export default function PrintQR() {
     try {
       setPrintingStatus('preparing');
       
-      // Request PDF from server with credentials
+      // Get the session from Supabase
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error('Authentication required');
+      }
+      
+      // Request PDF from server
       const response = await fetch(`/api/printqr-pdf?propertyId=${propertyId}`, {
         method: 'GET',
-        credentials: 'include',
+        credentials: 'same-origin',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
         },
       });
       
@@ -109,14 +117,12 @@ export default function PrintQR() {
         throw new Error(errorData.error || 'Failed to generate PDF');
       }
       
-      // Get blob from response
       const blob = await response.blob();
       
       if (blob.size === 0) {
         throw new Error('Generated PDF is empty');
       }
       
-      // Create URL for the blob
       const url = URL.createObjectURL(blob);
       setDownloadUrl(url);
       setPrintingStatus('ready');

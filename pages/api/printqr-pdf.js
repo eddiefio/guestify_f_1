@@ -4,21 +4,17 @@ import QRCode from 'qrcode';
 import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
 
 export default async function handler(req, res) {
-  // Initialize Supabase client
-  const supabase = createServerSupabaseClient({ req, res });
-
   try {
-    // Get user session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    // Create authenticated Supabase client
+    const supabase = createServerSupabaseClient({ req, res });
 
-    if (sessionError) {
-      console.error('Session error:', sessionError);
-      return res.status(401).json({ error: 'Session error' });
-    }
+    // Check if we have a session
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    if (!session) {
-      console.error('No session found');
-      return res.status(401).json({ error: 'No session found' });
+    if (!user) {
+      return res.status(401).json({ error: 'Not authenticated' });
     }
 
     const { propertyId } = req.query;
@@ -27,15 +23,12 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Property ID is required' });
     }
 
-    console.log('Session user ID:', session.user.id);
-    console.log('Property ID:', propertyId);
-
     // Fetch property details
     const { data: property, error: propertyError } = await supabase
       .from('apartments')
       .select('*')
       .eq('id', propertyId)
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
       .single();
 
     if (propertyError) {
@@ -46,8 +39,6 @@ export default async function handler(req, res) {
     if (!property) {
       return res.status(404).json({ error: 'Property not found or access denied' });
     }
-
-    console.log('Property found:', property);
 
     // Generate menu URL
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
