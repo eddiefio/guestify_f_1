@@ -22,11 +22,12 @@ export default function AuthLayout({ children, title = 'Guestify - Auth' }) {
             <Image 
               src="/images/guestify_logo.png" 
               alt="Guestify" 
-              width={32} 
-              height={32} 
+              width={40} 
+              height={40}
               quality={100}
-              className="h-8 w-auto object-contain" 
               priority
+              className="w-10 h-10"
+              style={{ objectFit: 'contain' }}
             />
           </div>
           <nav className="flex items-center">

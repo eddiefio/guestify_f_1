@@ -29,8 +29,9 @@ export default function Layout({ children, title = 'Guestify' }) {
                     width={40} 
                     height={40}
                     quality={100}
-                    className="h-10 w-auto object-contain" 
                     priority
+                    className="w-10 h-10"
+                    style={{ objectFit: 'contain' }}
                   />
                 </span>
               </Link>
@@ -42,8 +43,9 @@ export default function Layout({ children, title = 'Guestify' }) {
                   width={40} 
                   height={40}
                   quality={100}
-                  className="h-10 w-auto object-contain" 
                   priority
+                  className="w-10 h-10"
+                  style={{ objectFit: 'contain' }}
                 />
               </span>
             )}
