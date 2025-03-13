@@ -181,7 +181,7 @@ export default function PrintQR() {
           }
           .property-name {
             position: absolute;
-            bottom: 277mm;
+            bottom: 276mm;
             width: 100%;
             text-align: center;
             font-family: Arial, sans-serif;
