@@ -175,13 +175,13 @@ export default function PrintQR() {
             left: 50%;
             transform: translate(-50%, -50%);
             /* QR code sized appropriately */
-            width: 100mm;
-            height: 100mm;
+            width: 75mm;
+            height: 75mm;
             z-index: 2;
           }
           .property-name {
             position: absolute;
-            bottom: 40mm;
+            bottom: 277mm;
             width: 100%;
             text-align: center;
             font-family: Arial, sans-serif;
