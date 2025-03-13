@@ -23,13 +23,15 @@ export default function SignIn() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
+  
     try {
       console.log('Attempting login with:', email);
       const { user, error } = await signIn(email, password);
       
       if (error) {
-        console.error('Login error:', error);
+        if (error.message.includes('Email not confirmed')) {
+          throw new Error('Please check your email and click the confirmation link before signing in');
+        }
         throw error;
       }
       
