@@ -30,15 +30,32 @@ export default function SignIn() {
   }, [router.query]);
 
   // If user is already authenticated, redirect to dashboard
-  // Modificato per assicurarsi che l'autenticazione sia inizializzata completamente
   useEffect(() => {
-    // Aspetta che l'auth sia completamente inizializzata e che ci sia un utente valido
+    // Wait for auth to be fully initialized and user to be available
     if (authInitialized && user && !redirecting) {
       console.log('User is authenticated, redirecting to dashboard');
       setRedirecting(true);
-      router.push('/host/dashboard');
+      
+      // Slight delay to ensure all auth state is settled
+      setTimeout(() => {
+        router.push('/host/dashboard');
+      }, 500);
     }
   }, [user, router, redirecting, authInitialized]);
+
+  // Add timeout to prevent infinite redirecting state
+  useEffect(() => {
+    if (redirecting) {
+      const timeout = setTimeout(() => {
+        // If still redirecting after 5 seconds, something went wrong
+        console.warn('Redirect timeout - resetting state');
+        setRedirecting(false);
+        setError('Login process timed out. Please try again or use an incognito window.');
+      }, 5000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [redirecting]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -54,13 +71,13 @@ export default function SignIn() {
       
       if (user) {
         // Set a cookie to help middleware know we just signed in
-        document.cookie = `recent-signin=true; path=/; max-age=60`;
+        document.cookie = `recent-signin=true; path=/; max-age=60; SameSite=Lax`;
         
-        // Wait longer for auth state to settle before redirecting
+        // Short delay before redirecting to ensure auth state is settled
         setTimeout(() => {
           setRedirecting(true);
           router.push('/host/dashboard');
-        }, 3000);
+        }, 500);
       } else {
         throw new Error('No user returned from login');
       }
@@ -71,8 +88,7 @@ export default function SignIn() {
     }
   };
 
-  // Mostra il caricamento solo se stiamo effettivamente reindirizzando
-  // NON mostrare lo stato di caricamento se siamo in attesa dell'auth
+  // Show loading only while redirecting
   if (redirecting) {
     return (
       <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10 text-center">

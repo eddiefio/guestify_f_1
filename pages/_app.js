@@ -13,6 +13,26 @@ function MyApp({ Component, pageProps }) {
   useEffect(() => {
     setIsClient(true);
     
+    // Clear potentially corrupted session state on signin page
+    if (typeof window !== 'undefined' && window.location.pathname === '/auth/signin') {
+      const hasAuthIssue = localStorage.getItem('auth_session') && 
+                          !sessionStorage.getItem('auth_verified');
+      
+      if (hasAuthIssue) {
+        console.log('Detected potential corrupted session, clearing...');
+        localStorage.removeItem('auth_session');
+        
+        // Clear any auth-related cookies
+        document.cookie = 'supabase-auth=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        document.cookie = 'supabase-access-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        document.cookie = 'supabase-user=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        document.cookie = 'recent-signin=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      }
+      
+      // Set flag to avoid checking again
+      sessionStorage.setItem('auth_verified', 'true');
+    }
+    
     // Safety timeout to ensure isClient gets set to true
     const timeoutId = setTimeout(() => {
       if (!isClient) {

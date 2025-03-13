@@ -104,21 +104,22 @@ export function AuthProvider({ children }) {
                 }
               } else {
                 // Sessione scaduta, rimuoviamo dal localStorage
+                console.log('Cached session expired, removing');
                 localStorage.removeItem('auth_session');
               }
             } catch (e) {
               console.warn('Failed to parse cached session:', e);
+              localStorage.removeItem('auth_session');
             }
           }
         }
         
-        // Always verify the session with the server, but don't wait for it to complete
-        verifySessionWithServer();
+        // Always verify the session with server, but don't wait for completion
+        await verifySessionWithServer();
         
-        // Set auth as initialized to prevent hanging
         if (isSubscribed) {
+          // Delay authInitialized until session verification is complete
           setAuthInitialized(true);
-          // Still show loading until session check completes or times out
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
@@ -141,30 +142,42 @@ export function AuthProvider({ children }) {
           console.error('Error getting session:', sessionError);
           if (isSubscribed) {
             setLoading(false);
-            setAuthInitialized(true);
+            return;
           }
-          return;
         }
         
         if (!isSubscribed) return;
         
         if (session?.user) {
-          console.log('Found existing session for user:', session.user.id);
-          
-          // Salva la sessione in localStorage
-          if (typeof window !== 'undefined' && session.expires_at) {
-            localStorage.setItem('auth_session', JSON.stringify({
-              user: session.user,
-              expires_at: session.expires_at
-            }));
-          }
-          
-          setUser(session.user);
-          
-          // Fetch user profile
-          const profileData = await fetchUserProfile(session.user.id);
-          if (isSubscribed) {
-            setProfile(profileData);
+          // Check if session is expired
+          if (session.expires_at && new Date(session.expires_at) <= new Date()) {
+            console.log('Session expired, signing out');
+            await supabase.auth.signOut();
+            setUser(null);
+            setProfile(null);
+            
+            // Clear localStorage
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('auth_session');
+            }
+          } else {
+            console.log('Found valid session for user:', session.user.id);
+            
+            // Salva la sessione in localStorage
+            if (typeof window !== 'undefined' && session.expires_at) {
+              localStorage.setItem('auth_session', JSON.stringify({
+                user: session.user,
+                expires_at: session.expires_at
+              }));
+            }
+            
+            setUser(session.user);
+            
+            // Fetch user profile
+            const profileData = await fetchUserProfile(session.user.id);
+            if (isSubscribed) {
+              setProfile(profileData);
+            }
           }
         } else {
           console.log('No valid session found');
@@ -181,13 +194,11 @@ export function AuthProvider({ children }) {
         
         if (isSubscribed) {
           setLoading(false);
-          setAuthInitialized(true);
         }
       } catch (error) {
         console.error('Error verifying session:', error);
         if (isSubscribed) {
           setLoading(false);
-          setAuthInitialized(true);
         }
       }
     };
@@ -229,7 +240,6 @@ export function AuthProvider({ children }) {
           // Imposta loading a false solo se l'auth non è ancora stata inizializzata
           if (!authInitialized && isSubscribed) {
             setLoading(false);
-            setAuthInitialized(true);
           }
         }
       );
@@ -301,11 +311,14 @@ export function AuthProvider({ children }) {
         // Salva la sessione in localStorage
         if (typeof window !== 'undefined' && data.session?.expires_at) {
           // Set a temporary cookie to indicate recent login
-    document.cookie = `recent-signin=true; path=/; max-age=60`;
+          document.cookie = `recent-signin=true; path=/; max-age=60; SameSite=Lax`;
           localStorage.setItem('auth_session', JSON.stringify({
             user: data.user,
             expires_at: data.session.expires_at
           }));
+          
+          // Mark as verified
+          sessionStorage.setItem('auth_verified', 'true');
         }
         
         setUser(data.user);
@@ -323,6 +336,8 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Rest of the AuthContext.js remains the same...
+  
   // Sign up new user
   const signUp = async (email, password, metadata) => {
     try {
@@ -360,14 +375,6 @@ export function AuthProvider({ children }) {
             ...metadata
           }));
         }
-        
-        // IMPORTANT: Remove these lines to prevent auto-login after signup
-        // Set user immediately after signup
-        // setUser(data.user);
-        // setProfile({
-        //   id: data.user.id,
-        //   ...metadata
-        // });
       }
       
       return { user: data.user, error: null };
@@ -386,6 +393,7 @@ export function AuthProvider({ children }) {
       // Pulisci localStorage
       if (typeof window !== 'undefined') {
         localStorage.removeItem('auth_session');
+        sessionStorage.removeItem('auth_verified');
         // Rimuovi tutti i profili in cache
         for (const key of Object.keys(localStorage)) {
           if (key.startsWith('profile_')) {
