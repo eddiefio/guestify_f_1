@@ -11,8 +11,7 @@ function Dashboard() {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -38,32 +37,10 @@ function Dashboard() {
     fetchProperties();
   }, [user]);
 
-  // Filter properties based on search term
-  const filteredProperties = properties.filter(prop => 
-    prop.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleRefresh = () => {
-    setLoading(true);
-    setError(null);
-  };
-
   return (
     <div>
       <h2 className="text-lg sm:text-2xl font-bold text-gray-800 mb-4">Dashboard</h2>
       <p className="text-sm sm:text-base mb-4">Here you can view your properties.</p>
-
-      {/* Search Bar */}
-      <div className="mb-4">
-        <input
-          type="text"
-          id="propertySearchInput"
-          placeholder="Search properties by name..."
-          className="w-full border px-3 py-2 rounded"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
 
       {loading ? (
         <div className="text-center py-8">
@@ -73,22 +50,16 @@ function Dashboard() {
       ) : error ? (
         <div className="bg-red-100 text-red-700 p-4 rounded mb-4">
           <p>{error}</p>
-          <button 
-            onClick={handleRefresh}
-            className="mt-2 bg-red-200 hover:bg-red-300 text-red-800 px-3 py-1 rounded text-sm"
-          >
-            Try Again
-          </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" id="propertyGrid">
-          {filteredProperties.length > 0 ? (
-            filteredProperties.map((prop) => (
-              <div key={prop.id} className="property-card bg-white p-4 rounded-xl shadow-sm border flex flex-col">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {properties.length > 0 ? (
+            properties.map((prop) => (
+              <div key={prop.id} className="bg-white p-4 rounded-xl shadow-sm border flex flex-col">
                 {/* Header card: Name/Address & Edit/Delete */}
                 <div className="flex justify-between items-center mb-2">
                   <div>
-                    <h3 className="property-name text-base sm:text-lg font-bold text-gray-800">{prop.name}</h3>
+                    <h3 className="text-base sm:text-lg font-bold text-gray-800">{prop.name}</h3>
                     <p className="text-xs sm:text-sm text-gray-500">{prop.address}</p>
                   </div>
                   <div className="flex space-x-3">
