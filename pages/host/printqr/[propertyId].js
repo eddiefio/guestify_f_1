@@ -1,4 +1,4 @@
-// pages/host/printqr/[propertyId].js - Simple check
+// pages/host/printqr/[propertyId].js
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
@@ -22,6 +22,9 @@ export default function PrintQR() {
   const router = useRouter();
   const { propertyId } = router.query;
   const { user, profile } = useAuth();
+  
+  // Frame image path - this could be adjusted based on your actual file path
+  const frameImagePath = "/images/qr-frame.png";
 
   useEffect(() => {
     if (!user || !profile || !router.isReady) return;
@@ -129,17 +132,51 @@ export default function PrintQR() {
   const handleDirectPrint = () => {
     if (qrRef.current) {
       // Open the print dialog
-      const printWindow = window.open('', '', 'height=500,width=500');
+      const printWindow = window.open('', '', 'height=650,width=600');
       printWindow.document.write('<html><head><title>Print QR Code</title>');
+      // Add some CSS for positioning the QR code within the frame
+      printWindow.document.write(`
+        <style>
+          body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+          .container { text-align: center; padding: 20px; }
+          .qr-frame-container { 
+            position: relative; 
+            width: 500px; 
+            height: 500px; 
+            margin: 20px auto; 
+          }
+          .frame-image {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+          }
+          .qr-code {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+          }
+        </style>
+      `);
       printWindow.document.write('</head><body>');
-      printWindow.document.write('<div style="text-align:center; padding:20px;">');
-      printWindow.document.write('<h1 style="font-family:Arial,sans-serif;color:#5e2bff;">Guestify Menu</h1>');
-      printWindow.document.write('<h2 style="font-family:Arial,sans-serif;color:#333;">' + propertyName + '</h2>');
-      printWindow.document.write('<div style="margin:30px 0;">');
-      printWindow.document.write('<img src="' + qrCodeDataURL + '" style="width:300px;height:300px;" />');
+      printWindow.document.write('<div class="container">');
+      printWindow.document.write('<h1 style="color:#5e2bff;">Guestify Menu</h1>');
+      printWindow.document.write('<h2 style="color:#333;">' + propertyName + '</h2>');
+      
+      // QR code with frame
+      printWindow.document.write('<div class="qr-frame-container">');
+      // The frame image
+      printWindow.document.write(`<img src="${frameImagePath}" class="frame-image" alt="QR Frame" />`);
+      // The QR code positioned in the center of the frame
+      printWindow.document.write(`<img src="${qrCodeDataURL}" class="qr-code" alt="QR Code" />`);
       printWindow.document.write('</div>');
-      printWindow.document.write('<p style="font-family:Arial,sans-serif;color:#666;">Scan this QR code to access the menu</p>');
-      printWindow.document.write('<p style="font-family:Arial,sans-serif;color:#999;font-size:12px;">' + menuUrl + '</p>');
+      
+      printWindow.document.write('<p style="color:#666;">Scan this QR code to access the menu</p>');
+      printWindow.document.write('<p style="color:#999;font-size:12px;">' + menuUrl + '</p>');
       printWindow.document.write('</div>');
       printWindow.document.write('</body></html>');
       printWindow.document.close();
@@ -148,7 +185,7 @@ export default function PrintQR() {
       // Print after a short delay to ensure content is loaded
       setTimeout(() => {
         printWindow.print();
-      }, 250);
+      }, 500);
     }
   };
 
