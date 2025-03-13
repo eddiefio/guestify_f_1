@@ -31,6 +31,14 @@ export default async function handler(req, res) {
     console.log('Token from cookie:', token ? 'Present' : 'None');
 
     let user;
+    let userEmail;
+    
+    // Primo modo: prendiamo l'email dal body della richiesta
+    if (req.body.userEmail) {
+      userEmail = req.body.userEmail;
+      console.log('Using email from request body:', userEmail);
+    }
+    
     if (token) {
       try {
         // Initialize Supabase client
@@ -42,6 +50,11 @@ export default async function handler(req, res) {
           return res.status(401).json({ error: 'Invalid token' });
         }
         user = data.user;
+        
+        // Se non abbiamo ancora l'email, prendiamola dall'utente autenticato
+        if (!userEmail && user.email) {
+          userEmail = user.email;
+        }
       } catch (error) {
         console.error('Exception getting user from token:', error);
         return res.status(401).json({ error: 'Authentication error' });
@@ -56,6 +69,15 @@ export default async function handler(req, res) {
         return res.status(401).json({ error: 'User ID is required' });
       }
     }
+    
+    // Verifichiamo di avere sia l'utente che l'email
+    if (!user || !user.id) {
+      return res.status(400).json({ error: 'User ID not found' });
+    }
+    
+    if (!userEmail) {
+      return res.status(400).json({ error: 'User email is required. Please include it in the request.' });
+    }
 
     // Initialize Stripe with your secret key
     if (!STRIPE_SECRET_KEY) {
@@ -63,20 +85,6 @@ export default async function handler(req, res) {
     }
     
     const stripe = new Stripe(STRIPE_SECRET_KEY);
-
-    // Get user's email for Stripe
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(user.id);
-    
-    if (userError) {
-      console.error('Error fetching user details:', userError);
-      return res.status(500).json({ error: 'Failed to fetch user details' });
-    }
-
-    const userEmail = userData?.user?.email || req.body.userEmail;
-    if (!userEmail) {
-      return res.status(400).json({ error: 'User email not found' });
-    }
 
     // Create a Stripe account for the user
     const account = await stripe.accounts.create({
@@ -91,6 +99,7 @@ export default async function handler(req, res) {
     console.log('Created Stripe account:', account.id);
     
     // Store the Stripe account ID in the user's profile
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const { error: updateError } = await supabase
       .from('profiles')
       .update({ stripe_account_id: account.id })

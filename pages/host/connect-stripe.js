@@ -55,48 +55,49 @@ export default function ConnectStripe() {
     getSession();
   }, []);
 
-  const handleConnect = async () => {
-    setLoading(true);
-    setError(null);
+// Modifica alla funzione handleConnect in pages/host/connect-stripe.js
+const handleConnect = async () => {
+  setLoading(true);
+  setError(null);
 
-    try {
-      // Store return URL in localStorage
-      if (router.query.returnUrl) {
-        localStorage.setItem('stripe_return_url', router.query.returnUrl);
-      }
-      
-      // Call Stripe connect API
-      let response = await fetch('/api/stripe/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userId: user?.id,
-          userEmail: user?.email,
-          accessToken: sessionData?.access_token,
-          returnUrl: router.query.returnUrl 
-        }),
-        credentials: 'include'
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to connect with Stripe');
-      }
-
-      // Redirect to Stripe onboarding
-      if (data.url) {
-        console.log('Redirecting to Stripe onboarding:', data.url);
-        window.location.href = data.url;
-      } else {
-        throw new Error('No redirect URL returned');
-      }
-    } catch (error) {
-      console.error('Error connecting to Stripe:', error);
-      setError(error.message || 'An error occurred connecting to Stripe');
-      setLoading(false);
+  try {
+    // Store return URL in localStorage
+    if (router.query.returnUrl) {
+      localStorage.setItem('stripe_return_url', router.query.returnUrl);
     }
-  };
+    
+    // Call Stripe connect API - Aggiungiamo l'email dell'utente nel body
+    let response = await fetch('/api/stripe/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        userId: user?.id,
+        userEmail: user?.email, // Aggiungi l'email dell'utente
+        accessToken: sessionData?.access_token,
+        returnUrl: router.query.returnUrl 
+      }),
+      credentials: 'include'
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to connect with Stripe');
+    }
+
+    // Redirect to Stripe onboarding
+    if (data.url) {
+      console.log('Redirecting to Stripe onboarding:', data.url);
+      window.location.href = data.url;
+    } else {
+      throw new Error('No redirect URL returned');
+    }
+  } catch (error) {
+    console.error('Error connecting to Stripe:', error);
+    setError(error.message || 'An error occurred connecting to Stripe');
+    setLoading(false);
+  }
+};
 
   const handleSkip = () => {
     // Get the returnUrl from query parameters
