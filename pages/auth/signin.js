@@ -39,16 +39,17 @@ export default function SignIn() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
+  
     try {
       const { user, error } = await signIn(email, password);
       
       if (error) throw error;
       
       if (user) {
-        // Attendiamo un momento prima di reindirizzare
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        window.location.href = '/host/dashboard';
+        // Wait for auth state to settle before redirecting
+        setTimeout(() => {
+          router.push('/host/dashboard');
+        }, 1500);
       } else {
         throw new Error('No user returned from login');
       }
