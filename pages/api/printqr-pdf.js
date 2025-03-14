@@ -6,6 +6,7 @@ import QRCode from 'qrcode';
 export const config = {
   api: {
     bodyParser: false,
+    externalResolver: true,
   },
 };
 
@@ -15,16 +16,25 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Create authenticated Supabase client using the new API
+    // Initialize Supabase client
     const supabase = createPagesServerClient({ req, res });
-    
-    // Check if we have a session
+
+    // Get the session
     const {
       data: { session },
+      error: sessionError,
     } = await supabase.auth.getSession();
 
+    if (sessionError) {
+      console.error('Session error:', sessionError);
+      return res.status(401).json({
+        error: 'Authentication error',
+        details: sessionError.message
+      });
+    }
+
     if (!session) {
-      console.log('No session found');
+      console.log('No session found, headers:', req.headers);
       return res.status(401).json({
         error: 'Not authenticated',
         details: 'No valid session found'
@@ -37,7 +47,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Property ID is required' });
     }
 
-    // Fetch property details using the authenticated client
+    // Fetch property details
     const { data: property, error: propertyError } = await supabase
       .from('apartments')
       .select('id, host_id, name, address, city')
@@ -53,6 +63,7 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Property not found' });
     }
 
+    // Verify ownership
     if (property.host_id !== session.user.id) {
       return res.status(403).json({ error: 'Access denied - you do not own this property' });
     }
