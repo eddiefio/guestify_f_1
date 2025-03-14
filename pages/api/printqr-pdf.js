@@ -44,19 +44,31 @@ export default async function handler(req, res) {
 
     console.log('Fetching property:', propertyId);
 
-    // Fetch property details with explicit host_id check
+    // Fetch property details with both host_id and user_id check
     const { data: property, error: propertyError } = await supabase
       .from('apartments')
       .select('*')
       .eq('id', propertyId)
-      .eq('host_id', user.id) // Ensure the property belongs to the user
+      .or(`host_id.eq.${user.id},user_id.eq.${user.id}`) // Check both fields
       .single();
 
     if (propertyError) {
       console.error('Property fetch error:', propertyError);
+      // Log additional debug information
+      console.log('Query details:', {
+        propertyId,
+        userId: user.id,
+        errorCode: propertyError.code,
+        errorMessage: propertyError.message
+      });
+      
       return res.status(404).json({ 
         error: 'Property not found',
-        details: propertyError.message
+        details: propertyError.message,
+        debug: {
+          propertyId,
+          userId: user.id
+        }
       });
     }
 
