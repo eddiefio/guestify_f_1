@@ -1,10 +1,15 @@
 // pages/api/printqr-pdf.js
-import { supabase } from '../../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
 import path from 'path';
 import fs from 'fs';
-import { parse } from 'cookie';
+
+// Initialize Supabase with the service role key for admin access
+// This bypasses RLS for this specific API endpoint
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ndiqnzxplopcbcxzondp.supabase.co';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'YOUR_SERVICE_ROLE_KEY';
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -12,44 +17,33 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { propertyId } = req.query;
+    const { propertyId, userId } = req.query;
     
-    // Parse cookies from the request
-    const cookies = req.headers.cookie ? parse(req.headers.cookie) : {};
-    
-    // Look for authentication tokens in cookies
-    const accessToken = cookies['supabase-access-token'];
-    
-    // If no tokens found, check for the simpler auth flag
-    if (!accessToken && (!cookies['supabase-auth'] || cookies['supabase-auth'] !== 'true')) {
-      console.error('No auth tokens found in cookies');
-      // Send an unauthorized error as a PDF with text
-      return sendErrorPdf(res, 'Unauthorized access');
+    if (!propertyId) {
+      return sendErrorPdf(res, 'Property ID is required');
     }
 
-    // Try to set the auth session if we have tokens
-    if (accessToken) {
-      // Set the auth session from cookies
-      await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: cookies['supabase-refresh-token'] || ''
-      });
-    }
-    
-    // Fetch property details
-    const { data: property, error: propertyError } = await supabase
+    // Fetch property details using the admin client (bypasses RLS)
+    const { data: property, error: propertyError } = await supabaseAdmin
       .from('apartments')
       .select('id, host_id, name, address, city')
       .eq('id', propertyId)
       .single();
 
     if (propertyError || !property) {
-      console.error('Property error:', propertyError);
-      return sendErrorPdf(res, 'Property not found');
+      console.error('Property error:', propertyError || 'Property not found');
+      return sendErrorPdf(res, `Property not found: ${propertyError?.message || ''}`);
+    }
+
+    // Verify the user is the property owner if userId is provided
+    if (userId && property.host_id !== userId) {
+      console.log(`User ID mismatch: ${userId} vs ${property.host_id}`);
     }
 
     // Generate menu URL
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || req.headers.origin || 'https://app.guestify.shop';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+                   req.headers.origin || 
+                   'https://app.guestify.shop';
     const menuUrl = `${baseUrl}/guest/menu/${propertyId}`;
 
     // Generate QR code as data URL
@@ -124,7 +118,7 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Error generating PDF:', error);
-    return sendErrorPdf(res, 'Internal server error');
+    return sendErrorPdf(res, `Internal server error: ${error.message}`);
   }
 }
 

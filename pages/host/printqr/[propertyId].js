@@ -130,13 +130,13 @@ export default function PrintQR() {
   };
 
   const handleDirectPrint = () => {
-    if (propertyId) {
+    if (propertyId && user?.id) {
       // Set button to loading state
       setPrintingStatus('preparing');
       
       try {
-        // Create a direct link to download the PDF and force download
-        const downloadPdfUrl = `/api/printqr-pdf?propertyId=${propertyId}`;
+        // Create a direct link to download the PDF and include user ID
+        const downloadPdfUrl = `/api/printqr-pdf?propertyId=${propertyId}&userId=${user.id}`;
         
         // Create an invisible anchor element to trigger the download
         const link = document.createElement('a');
