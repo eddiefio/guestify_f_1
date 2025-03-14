@@ -128,92 +128,40 @@ export default function PrintQR() {
       setError(error.message || 'Failed to generate PDF');
     }
   };
-
-  const handleDirectPrint = () => {
-    if (qrRef.current) {
-      // Open the print dialog
-      const printWindow = window.open('', '', 'height=650,width=600');
-      printWindow.document.write('<html><head><title>Print QR Code</title>');
+  const handleSaveAsPDF = async () => {
+    try {
+      setPrintingStatus('preparing');
       
-      // Add CSS for A4 format with improved layout
-      printWindow.document.write(`
-        <style>
-          @page {
-            size: A4;
-            margin: 0;
-          }
-          body {
-            margin: 0;
-            padding: 0;
-            width: 210mm;
-            height: 297mm;
-            background-color: white;
-            position: relative;
-            overflow: hidden;
-          }
-          .qr-frame-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 210mm;
-            height: 297mm;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-          }
-          .frame-image {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-          }
-          .qr-code {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            /* QR code sized appropriately */
-            width: 75mm;
-            height: 75mm;
-            z-index: 2;
-          }
-          .property-name {
-            position: absolute;
-            bottom: 276mm;
-            width: 100%;
-            text-align: center;
-            font-family: Arial, sans-serif;
-            font-size: 16pt;
-            color: #5e2bff;
-            z-index: 3;
-          }
-        </style>
-      `);
+      // Use the existing server API to generate the PDF
+      const response = await fetch(`/api/printqr-pdf?propertyId=${propertyId}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/pdf',
+        },
+      });
       
-      printWindow.document.write('</head><body>');
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
       
-      // QR code with frame - in full page layout
-      printWindow.document.write('<div class="qr-frame-container">');
-      // The frame image
-      printWindow.document.write(`<img src="${frameImagePath}" class="frame-image" alt="QR Frame" />`);
-      // The QR code positioned in the center of the frame
-      printWindow.document.write(`<img src="${qrCodeDataURL}" class="qr-code" alt="QR Code" />`);
-      // Add property name
-      printWindow.document.write(`<div class="property-name">${propertyName}</div>`);
-      printWindow.document.write('</div>');
+      // Get the PDF blob from the response
+      const pdfBlob = await response.blob();
       
-      printWindow.document.write('</body></html>');
-      printWindow.document.close();
-      printWindow.focus();
+      // Create a URL for the blob
+      const pdfUrl = URL.createObjectURL(pdfBlob);
       
-      // Print after a short delay to ensure content is loaded
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
+      // Open the PDF in a new tab
+      window.open(pdfUrl, '_blank');
+      
+      setPrintingStatus('ready');
+      setDownloadUrl(pdfUrl);
+    } catch (error) {
+      console.error('Error creating PDF:', error);
+      setPrintingStatus('error');
+      setError(error.message || 'Failed to generate PDF');
     }
-  };
+  }
+  ;
 
   // Show loading while checking Stripe status
   if (isCheckingStripe) {
@@ -265,16 +213,25 @@ export default function PrintQR() {
           </div>
 
           <div className="flex flex-col sm:flex-row justify-center gap-4 mb-6">
-            {/* Save as PDF button */}
-            <button
-              onClick={handleDirectPrint}
-              className="bg-[#fad02f] text-black px-4 py-2 rounded-full hover:opacity-90 transition font-semibold flex items-center justify-center"
-            >
-              <i className="fas fa-file-pdf mr-2"></i>
-              Save as PDF
-            </button>
-          </div>
-
+  {/* Save as PDF button */}
+  <button
+    onClick={handleSaveAsPDF}
+    className="bg-[#fad02f] text-black px-4 py-2 rounded-full hover:opacity-90 transition font-semibold flex items-center justify-center"
+    disabled={printingStatus === 'preparing'}
+  >
+    {printingStatus === 'preparing' ? (
+      <>
+        <i className="fas fa-spinner fa-spin mr-2"></i>
+        Generating PDF...
+      </>
+    ) : (
+      <>
+        <i className="fas fa-file-pdf mr-2"></i>
+        Save as PDF
+      </>
+    )}
+  </button>
+</div>
           {/* Show download link if PDF is ready */}
           {printingStatus === 'ready' && downloadUrl && (
             <div className="mt-4 p-3 bg-green-50 rounded-lg">
