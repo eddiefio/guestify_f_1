@@ -135,11 +135,17 @@ export default function PrintQR() {
       setPrintingStatus('preparing');
       
       try {
-        // Generate the URL for the API endpoint
-        const pdfUrl = `/api/printqr-pdf?propertyId=${propertyId}`;
+        // Create a direct link to download the PDF and force download
+        const downloadPdfUrl = `/api/printqr-pdf?propertyId=${propertyId}`;
         
-        // Open in a new tab to download the PDF
-        window.open(pdfUrl, '_blank');
+        // Create an invisible anchor element to trigger the download
+        const link = document.createElement('a');
+        link.href = downloadPdfUrl;
+        link.setAttribute('download', `guestify-menu-${propertyId}.pdf`);
+        link.setAttribute('target', '_blank');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
         
         // Set success status after a short delay
         setTimeout(() => {
