@@ -44,12 +44,27 @@ export default async function handler(req, res) {
 
     console.log('Fetching property:', propertyId);
 
-    // Fetch property details checking only host_id
+    // Verifica il profilo dell'utente
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) {
+      console.error('Profile fetch error:', profileError);
+      return res.status(401).json({
+        error: 'Authentication failed',
+        details: 'User profile not found'
+      });
+    }
+
+    // Ora cerca la proprietà
     const { data: property, error: propertyError } = await supabase
       .from('apartments')
       .select('*')
       .eq('id', propertyId)
-      .eq('host_id', user.id)
+      .eq('host_id', profile.id)  // usa l'ID del profilo
       .single();
 
     if (propertyError) {
