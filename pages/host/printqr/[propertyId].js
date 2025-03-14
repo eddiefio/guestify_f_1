@@ -130,88 +130,26 @@ export default function PrintQR() {
   };
 
   const handleDirectPrint = () => {
-    if (qrRef.current) {
-      // Open the print dialog
-      const printWindow = window.open('', '', 'height=650,width=600');
-      printWindow.document.write('<html><head><title>Print QR Code</title>');
+    if (propertyId) {
+      // Set button to loading state
+      setPrintingStatus('preparing');
       
-      // Add CSS for A4 format with improved layout
-      printWindow.document.write(`
-        <style>
-          @page {
-            size: A4;
-            margin: 0;
-          }
-          body {
-            margin: 0;
-            padding: 0;
-            width: 210mm;
-            height: 297mm;
-            background-color: white;
-            position: relative;
-            overflow: hidden;
-          }
-          .qr-frame-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 210mm;
-            height: 297mm;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-          }
-          .frame-image {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-          }
-          .qr-code {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            /* QR code sized appropriately */
-            width: 75mm;
-            height: 75mm;
-            z-index: 2;
-          }
-          .property-name {
-            position: absolute;
-            bottom: 287mm;
-            width: 100%;
-            text-align: center;
-            font-family: Arial, sans-serif;
-            font-size: 12pt;
-            color: #5e2bff;
-            z-index: 3;
-          }
-        </style>
-      `);
-      
-      printWindow.document.write('</head><body>');
-      
-      // QR code with frame - in full page layout
-      printWindow.document.write('<div class="qr-frame-container">');
-      // The frame image
-      printWindow.document.write(`<img src="${frameImagePath}" class="frame-image" alt="QR Frame" />`);
-      // The QR code positioned in the center of the frame
-      printWindow.document.write(`<img src="${qrCodeDataURL}" class="qr-code" alt="QR Code" />`);
-      // Add property name
-      printWindow.document.write(`<div class="property-name">${propertyName}</div>`);
-      printWindow.document.write('</div>');
-      
-      printWindow.document.write('</body></html>');
-      printWindow.document.close();
-      printWindow.focus();
-      
-      // Print after a short delay to ensure content is loaded
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
+      try {
+        // Generate the URL for the API endpoint
+        const pdfUrl = `/api/printqr-pdf?propertyId=${propertyId}`;
+        
+        // Open in a new tab to download the PDF
+        window.open(pdfUrl, '_blank');
+        
+        // Set success status after a short delay
+        setTimeout(() => {
+          setPrintingStatus('ready');
+        }, 1000);
+      } catch (error) {
+        console.error('Error creating PDF:', error);
+        setPrintingStatus('error');
+        setError(error.message || 'Failed to generate PDF');
+      }
     }
   };
 
@@ -275,17 +213,21 @@ export default function PrintQR() {
             </button>
           </div>
 
-          {/* Show download link if PDF is ready */}
-          {printingStatus === 'ready' && downloadUrl && (
+          {/* Show status messages */}
+          {printingStatus === 'preparing' && (
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-700">
+                Preparing your PDF...
+              </p>
+            </div>
+          )}
+
+          {printingStatus === 'ready' && (
             <div className="mt-4 p-3 bg-green-50 rounded-lg">
               <p className="text-sm text-green-700 mb-2">PDF generated successfully!</p>
-              <a 
-                href={downloadUrl} 
-                download="guestify-qrcode.pdf"
-                className="text-[#5e2bff] hover:underline text-sm"
-              >
-                Click here to download if it didn't open automatically
-              </a>
+              <p className="text-xs text-gray-600">
+                If your download didn't start automatically, check your browser's download manager or popup blocker settings.
+              </p>
             </div>
           )}
 
