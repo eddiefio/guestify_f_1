@@ -1,5 +1,5 @@
 // pages/api/printqr-pdf.js
-import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
 
@@ -15,17 +15,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Create authenticated Supabase client
-    const supabaseServerClient = createServerSupabaseClient({ req, res });
+    // Create authenticated Supabase client using the new API
+    const supabase = createPagesServerClient({ req, res });
     
     // Check if we have a session
     const {
       data: { session },
-    } = await supabaseServerClient.auth.getSession();
+    } = await supabase.auth.getSession();
 
     if (!session) {
+      console.log('No session found');
       return res.status(401).json({
         error: 'Not authenticated',
+        details: 'No valid session found'
       });
     }
 
@@ -36,7 +38,7 @@ export default async function handler(req, res) {
     }
 
     // Fetch property details using the authenticated client
-    const { data: property, error: propertyError } = await supabaseServerClient
+    const { data: property, error: propertyError } = await supabase
       .from('apartments')
       .select('id, host_id, name, address, city')
       .eq('id', propertyId)
@@ -55,100 +57,37 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Access denied - you do not own this property' });
     }
 
-    // Generate the URL of the menu
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || req.headers.origin || 'https://app.guestify.shop';
-    const menuUrl = `${baseUrl}/guest/menu/${propertyId}`;
-
-    // Generate the QR code as data URL
-    const qrCodeDataUrl = await QRCode.toDataURL(menuUrl, {
-      width: 300,
-      margin: 1,
-      color: {
-        dark: '#5e2bff',
-        light: '#ffffff'
-      }
-    });
-
-    // Configure the headers for the PDF download
+    // Set appropriate headers for PDF response
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename=guestify-qrcode.pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=guestify-menu-${property.name}.pdf`);
 
-    // Create a new PDF document
-    const doc = new PDFDocument({
-      size: 'A4',
-      margin: 50
-    });
-
-    // Handle potential errors in the PDF generation stream
-    doc.on('error', (err) => {
-      console.error('PDFKit error:', err);
-      // At this point headers are already sent, so we can only log the error
-    });
-
-    // Pipe the PDF directly to the response
+    // Create PDF document
+    const doc = new PDFDocument();
     doc.pipe(res);
 
-    // Add content to the PDF
-    doc.fontSize(24)
-       .text('Guestify Menu', { align: 'center' });
-       
-    doc.moveDown(0.5);
+    // Generate QR code
+    const qrCodeData = await QRCode.toDataURL(`${process.env.NEXT_PUBLIC_APP_URL}/guest/menu/${propertyId}`);
 
-    doc.fontSize(18)
-       .text(property.name, { align: 'center' });
-       
-    doc.moveDown(1);
-
-    if (property.address) {
-      doc.fontSize(12)
-         .text(property.address, { align: 'center' });
-         
-      doc.moveDown(0.5);
-    }
-
-    // Convert the data URL to Buffer for the image
-    const qrCodeImage = Buffer.from(qrCodeDataUrl.split(',')[1], 'base64');
-
-    // Add the QR code
-    doc.image(qrCodeImage, {
-      fit: [300, 300],
-      align: 'center',
-      valign: 'center'
+    // Add content to PDF
+    doc.fontSize(25).text('Your Restaurant QR Code', { align: 'center' });
+    doc.moveDown();
+    doc.image(qrCodeData, {
+      fit: [250, 250],
+      align: 'center'
     });
+    doc.moveDown();
+    doc.fontSize(14).text(property.name, { align: 'center' });
+    doc.fontSize(12).text(property.address, { align: 'center' });
+    doc.fontSize(12).text(property.city, { align: 'center' });
 
-    doc.moveDown(1);
-
-    doc.fontSize(12)
-       .text('Scan this QR code to access the menu', { align: 'center' });
-
-    doc.moveDown(0.5);
-
-    doc.fontSize(10)
-       .text(menuUrl, { align: 'center', color: 'blue', underline: true });
-       
-    doc.moveDown(2);
-    
-    // Add a footer with date
-    const now = new Date();
-    doc.fontSize(8)
-       .text(`Generated on ${now.toLocaleDateString()} at ${now.toLocaleTimeString()}`, { 
-         align: 'center',
-         color: 'gray'
-       });
-
-    // Finalize the PDF
+    // Finalize PDF
     doc.end();
 
   } catch (error) {
-    console.error('Error generating PDF:', error);
-    
-    // Check if headers have been sent already
-    if (!res.headersSent) {
-      return res.status(500).json({ 
-        error: 'Internal server error while generating PDF',
-        details: error.message 
-      });
-    }
-    // If headers are already sent, we can't send a JSON response
+    console.error('PDF generation error:', error);
+    return res.status(500).json({ 
+      error: 'Failed to generate PDF',
+      details: error.message 
+    });
   }
 }
