@@ -434,13 +434,13 @@ export default function AddProduct() {
               <input
                 type="radio"
                 name="category"
-                value="Articles"
-                checked={formData.category === "Articles"}
+                value="Products"
+                checked={formData.category === "Products"}
                 onChange={handleChange}
                 className="mr-2"
                 required
               />
-              <span>Articles</span>
+              <span>Products</span>
             </label>
           </div>
         </div>
