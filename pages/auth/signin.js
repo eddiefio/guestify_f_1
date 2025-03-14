@@ -1,4 +1,4 @@
-// pages/auth/signin.js
+// pages/auth/signin.js - Fixed to prevent infinite loading state
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -36,10 +36,7 @@ export default function SignIn() {
       console.log('User is authenticated, redirecting to dashboard');
       setRedirecting(true);
       
-      // Slight delay to ensure all auth state is settled
-      setTimeout(() => {
-        router.push('/host/dashboard');
-      }, 500);
+      router.push('/host/dashboard');
     }
   }, [user, router, redirecting, authInitialized]);
 
@@ -47,15 +44,15 @@ export default function SignIn() {
   useEffect(() => {
     if (redirecting) {
       const timeout = setTimeout(() => {
-        // If still redirecting after 5 seconds, something went wrong
-        console.warn('Redirect timeout - resetting state');
+        // If still redirecting after 3 seconds, force navigation
+        console.warn('Redirect timeout - forcing navigation');
         setRedirecting(false);
-        setError('Login process timed out. Please try again or use an incognito window.');
-      }, 5000);
+        router.push('/host/dashboard');
+      }, 3000);
       
       return () => clearTimeout(timeout);
     }
-  }, [redirecting]);
+  }, [redirecting, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -73,11 +70,8 @@ export default function SignIn() {
         // Set a cookie with a much longer lifetime (24 hours)
         document.cookie = `recent-signin=true; path=/; max-age=86400; SameSite=Lax`;
         
-        // Short delay before redirecting to ensure auth state is settled
-        setTimeout(() => {
-          setRedirecting(true);
-          router.push('/host/dashboard');
-        }, 500);
+        // Immediately redirect without waiting
+        router.push('/host/dashboard');
       } else {
         throw new Error('No user returned from login');
       }
@@ -94,6 +88,13 @@ export default function SignIn() {
       <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10 text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto"></div>
         <p className="mt-4 text-gray-600">Signing in, please wait...</p>
+        {/* Add a manual redirect button as fallback */}
+        <button 
+          onClick={() => router.push('/host/dashboard')} 
+          className="mt-4 text-blue-500 underline"
+        >
+          Click here if not redirecting
+        </button>
       </div>
     );
   }
