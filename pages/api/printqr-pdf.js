@@ -16,28 +16,24 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Initialize Supabase client
-    const supabase = createPagesServerClient({ req, res });
-
-    // Get the session
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
-
-    if (sessionError) {
-      console.error('Session error:', sessionError);
-      return res.status(401).json({
-        error: 'Authentication error',
-        details: sessionError.message
-      });
+    // Estrai il token di autorizzazione
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Missing or invalid authorization header' });
     }
+    const token = authHeader.split(' ')[1];
 
-    if (!session) {
-      console.log('No session found, headers:', req.headers);
+    // Inizializza Supabase con il token
+    const supabase = createPagesServerClient({ req, res });
+    
+    // Imposta la sessione manualmente
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      console.error('Auth error:', authError);
       return res.status(401).json({
-        error: 'Not authenticated',
-        details: 'No valid session found'
+        error: 'Authentication failed',
+        details: authError?.message || 'Invalid token'
       });
     }
 
@@ -64,7 +60,7 @@ export default async function handler(req, res) {
     }
 
     // Verify ownership
-    if (property.host_id !== session.user.id) {
+    if (property.host_id !== user.id) {
       return res.status(403).json({ error: 'Access denied - you do not own this property' });
     }
 

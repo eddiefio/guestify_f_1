@@ -134,11 +134,13 @@ const handleSaveAsPDF = async () => {
     setPrintingStatus('preparing');
 
     // Get the session from supabase
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
-    if (!session) {
+    if (sessionError || !session) {
       throw new Error('No active session');
     }
+
+    console.log('Using access token:', session.access_token); // Per debugging
 
     const response = await fetch(`/api/printqr-pdf?propertyId=${propertyId}`, {
       method: 'GET',
