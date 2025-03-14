@@ -16,17 +16,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Estrai il token di autorizzazione
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'Missing or invalid authorization header' });
     }
     const token = authHeader.split(' ')[1];
 
-    // Inizializza Supabase con il token
+    // Initialize Supabase
     const supabase = createPagesServerClient({ req, res });
     
-    // Imposta la sessione manualmente
+    // Verify user
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
@@ -43,25 +42,30 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Property ID is required' });
     }
 
-    // Fetch property details
+    console.log('Fetching property:', propertyId);
+
+    // Fetch property details with explicit host_id check
     const { data: property, error: propertyError } = await supabase
       .from('apartments')
-      .select('id, host_id, name, address, city')
+      .select('*')
       .eq('id', propertyId)
+      .eq('host_id', user.id) // Ensure the property belongs to the user
       .single();
 
     if (propertyError) {
       console.error('Property fetch error:', propertyError);
-      return res.status(404).json({ error: 'Property not found' });
+      return res.status(404).json({ 
+        error: 'Property not found',
+        details: propertyError.message
+      });
     }
 
     if (!property) {
-      return res.status(404).json({ error: 'Property not found' });
-    }
-
-    // Verify ownership
-    if (property.host_id !== user.id) {
-      return res.status(403).json({ error: 'Access denied - you do not own this property' });
+      console.error('Property not found for ID:', propertyId);
+      return res.status(404).json({ 
+        error: 'Property not found',
+        details: 'No property found with the provided ID'
+      });
     }
 
     // Set appropriate headers for PDF response

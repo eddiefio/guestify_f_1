@@ -133,15 +133,14 @@ const handleSaveAsPDF = async () => {
   try {
     setPrintingStatus('preparing');
 
-    // Get the session from supabase
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
     if (sessionError || !session) {
       throw new Error('No active session');
     }
 
-    console.log('Using access token:', session.access_token); // Per debugging
-
+    console.log('Requesting PDF for property:', propertyId);
+    
     const response = await fetch(`/api/printqr-pdf?propertyId=${propertyId}`, {
       method: 'GET',
       headers: {
@@ -153,29 +152,25 @@ const handleSaveAsPDF = async () => {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to generate PDF');
+      throw new Error(errorData.error + (errorData.details ? `: ${errorData.details}` : ''));
     }
 
     const pdfBlob = await response.blob();
     const pdfUrl = URL.createObjectURL(pdfBlob);
     
-    // Crea il nome del file
     const filename = `guestify-menu-${propertyName.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`;
     
-    // Download automatico
     const a = document.createElement('a');
     a.href = pdfUrl;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     
-    // Apri in una nuova tab
     const newWindow = window.open(pdfUrl, '_blank');
     if (newWindow === null) {
       console.warn('Popup blocked - PDF will only download');
     }
     
-    // Pulizia
     document.body.removeChild(a);
     setTimeout(() => {
       URL.revokeObjectURL(pdfUrl);
