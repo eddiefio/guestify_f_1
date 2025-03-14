@@ -128,40 +128,87 @@ export default function PrintQR() {
       setError(error.message || 'Failed to generate PDF');
     }
   };
-  const handleSaveAsPDF = async () => {
-    try {
-      setPrintingStatus('preparing');
+
+const handleSaveAsPDF = async () => {
+  try {
+    setPrintingStatus('preparing');
+    
+    // Use the existing server API to generate the PDF
+    const response = await fetch(`/api/printqr-pdf?propertyId=${propertyId}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/pdf',
+      },
+      credentials: 'include'  // Critical: Send authentication cookies with the request
+    });
+    
+    // If we get a non-success response, handle it appropriately
+    if (!response.ok) {
+      let errorMessage = `Error (${response.status})`;
       
-      // Use the existing server API to generate the PDF
-      const response = await fetch(`/api/printqr-pdf?propertyId=${propertyId}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/pdf',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to generate PDF');
+      // Try to get more detailed error information
+      try {
+        // Try to parse JSON error
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch (parseError) {
+        // If not JSON, try to get text
+        try {
+          errorMessage = await response.text() || errorMessage;
+        } catch (textError) {
+          // If all else fails, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
       }
       
-      // Get the PDF blob from the response
-      const pdfBlob = await response.blob();
+      // Log the error for debugging
+      console.error('PDF generation failed:', response.status, errorMessage);
       
-      // Create a URL for the blob
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      
-      // Open the PDF in a new tab
-      window.open(pdfUrl, '_blank');
-      
-      setPrintingStatus('ready');
-      setDownloadUrl(pdfUrl);
-    } catch (error) {
-      console.error('Error creating PDF:', error);
-      setPrintingStatus('error');
-      setError(error.message || 'Failed to generate PDF');
+      // Handle specific status codes
+      if (response.status === 401) {
+        throw new Error('Authentication error: Please sign in again');
+      } else if (response.status === 403) {
+        throw new Error('Access denied: You do not have permission to download this QR code');
+      } else if (response.status === 404) {
+        throw new Error('Property not found');
+      } else {
+        throw new Error(`Failed to generate PDF: ${errorMessage}`);
+      }
     }
+    
+    // Get the PDF blob from the response
+    const pdfBlob = await response.blob();
+    
+    // Create a URL for the blob
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    
+    // Create a filename with the property name and date
+    const filename = `guestify-menu-${propertyName.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`;
+    
+    // Create an invisible link element to trigger the download
+    const a = document.createElement('a');
+    a.href = pdfUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    
+    // Clean up
+    setTimeout(() => {
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(pdfUrl);
+    }, 100);
+    
+    // Also open the PDF in a new tab for viewing
+    window.open(pdfUrl, '_blank');
+    
+    setPrintingStatus('ready');
+    setDownloadUrl(pdfUrl);
+  } catch (error) {
+    console.error('Error creating PDF:', error);
+    setPrintingStatus('error');
+    setError(error.message || 'Failed to generate PDF');
   }
-  ;
+}
 
   // Show loading while checking Stripe status
   if (isCheckingStripe) {
