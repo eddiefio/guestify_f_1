@@ -1,4 +1,4 @@
-// pages/auth/signin.js - Fixed to prevent infinite loading state
+// pages/auth/signin.js - Completely removed redirecting state and loading spinner
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -9,7 +9,6 @@ export default function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const router = useRouter();
@@ -29,34 +28,17 @@ export default function SignIn() {
     }
   }, [router.query]);
 
-  // If user is already authenticated, redirect to dashboard
+  // If user is already authenticated, redirect to dashboard without any loading state
   useEffect(() => {
-    // Wait for auth to be fully initialized and user to be available
-    if (authInitialized && user && !redirecting) {
+    if (authInitialized && user) {
       console.log('User is authenticated, redirecting to dashboard');
-      setRedirecting(true);
-      
       router.push('/host/dashboard');
     }
-  }, [user, router, redirecting, authInitialized]);
-
-  // Add timeout to prevent infinite redirecting state
-  useEffect(() => {
-    if (redirecting) {
-      const timeout = setTimeout(() => {
-        // If still redirecting after 3 seconds, force navigation
-        console.warn('Redirect timeout - forcing navigation');
-        setRedirecting(false);
-        router.push('/host/dashboard');
-      }, 3000);
-      
-      return () => clearTimeout(timeout);
-    }
-  }, [redirecting, router]);
+  }, [user, router, authInitialized]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (loading || redirecting) return; // Prevent multiple submissions
+    if (loading) return; // Prevent multiple submissions
     
     setLoading(true);
     setError(null);
@@ -70,8 +52,8 @@ export default function SignIn() {
         // Set a cookie with a much longer lifetime (24 hours)
         document.cookie = `recent-signin=true; path=/; max-age=86400; SameSite=Lax`;
         
-        // Immediately redirect without waiting
-        router.push('/host/dashboard');
+        // Immediately redirect without any loading spinner
+        window.location.href = '/host/dashboard';
       } else {
         throw new Error('No user returned from login');
       }
@@ -81,23 +63,6 @@ export default function SignIn() {
       setLoading(false);
     }
   };
-
-  // Show loading only while redirecting
-  if (redirecting) {
-    return (
-      <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Signing in, please wait...</p>
-        {/* Add a manual redirect button as fallback */}
-        <button 
-          onClick={() => router.push('/host/dashboard')} 
-          className="mt-4 text-blue-500 underline"
-        >
-          Click here if not redirecting
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow mt-10">
