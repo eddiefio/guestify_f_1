@@ -129,61 +129,91 @@ export default function PrintQR() {
     }
   };
 
-const handleSaveAsPDF = async () => {
-  try {
-    setPrintingStatus('preparing');
-
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError || !session) {
-      throw new Error('No active session');
+  const handleDirectPrint = () => {
+    if (qrRef.current) {
+      // Open the print dialog
+      const printWindow = window.open('', '', 'height=650,width=600');
+      printWindow.document.write('<html><head><title>Print QR Code</title>');
+      
+      // Add CSS for A4 format with improved layout
+      printWindow.document.write(`
+        <style>
+          @page {
+            size: A4;
+            margin: 0;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+            width: 210mm;
+            height: 297mm;
+            background-color: white;
+            position: relative;
+            overflow: hidden;
+          }
+          .qr-frame-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 210mm;
+            height: 297mm;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+          }
+          .frame-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+          .qr-code {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            /* QR code sized appropriately */
+            width: 75mm;
+            height: 75mm;
+            z-index: 2;
+          }
+          .property-name {
+            position: absolute;
+            bottom: 287mm;
+            width: 100%;
+            text-align: center;
+            font-family: Arial, sans-serif;
+            font-size: 12pt;
+            color: #5e2bff;
+            z-index: 3;
+          }
+        </style>
+      `);
+      
+      printWindow.document.write('</head><body>');
+      
+      // QR code with frame - in full page layout
+      printWindow.document.write('<div class="qr-frame-container">');
+      // The frame image
+      printWindow.document.write(`<img src="${frameImagePath}" class="frame-image" alt="QR Frame" />`);
+      // The QR code positioned in the center of the frame
+      printWindow.document.write(`<img src="${qrCodeDataURL}" class="qr-code" alt="QR Code" />`);
+      // Add property name
+      printWindow.document.write(`<div class="property-name">${propertyName}</div>`);
+      printWindow.document.write('</div>');
+      
+      printWindow.document.write('</body></html>');
+      printWindow.document.close();
+      printWindow.focus();
+      
+      // Print after a short delay to ensure content is loaded
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
     }
-
-    console.log('Requesting PDF for property:', propertyId);
-    
-    const response = await fetch(`/api/printqr-pdf?propertyId=${propertyId}`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/pdf',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      credentials: 'include'
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error + (errorData.details ? `: ${errorData.details}` : ''));
-    }
-
-    const pdfBlob = await response.blob();
-    const pdfUrl = URL.createObjectURL(pdfBlob);
-    
-    const filename = `guestify-menu-${propertyName.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`;
-    
-    const a = document.createElement('a');
-    a.href = pdfUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    
-    const newWindow = window.open(pdfUrl, '_blank');
-    if (newWindow === null) {
-      console.warn('Popup blocked - PDF will only download');
-    }
-    
-    document.body.removeChild(a);
-    setTimeout(() => {
-      URL.revokeObjectURL(pdfUrl);
-    }, 100);
-
-    setPrintingStatus('ready');
-    setDownloadUrl(pdfUrl);
-  } catch (error) {
-    console.error('Error creating PDF:', error);
-    setPrintingStatus('error');
-    setError(error.message);
-  }
-};
+  };
 
   // Show loading while checking Stripe status
   if (isCheckingStripe) {
@@ -235,25 +265,16 @@ const handleSaveAsPDF = async () => {
           </div>
 
           <div className="flex flex-col sm:flex-row justify-center gap-4 mb-6">
-  {/* Save as PDF button */}
-  <button
-    onClick={handleSaveAsPDF}
-    className="bg-[#fad02f] text-black px-4 py-2 rounded-full hover:opacity-90 transition font-semibold flex items-center justify-center"
-    disabled={printingStatus === 'preparing'}
-  >
-    {printingStatus === 'preparing' ? (
-      <>
-        <i className="fas fa-spinner fa-spin mr-2"></i>
-        Generating PDF...
-      </>
-    ) : (
-      <>
-        <i className="fas fa-file-pdf mr-2"></i>
-        Save as PDF
-      </>
-    )}
-  </button>
-</div>
+            {/* Save as PDF button */}
+            <button
+              onClick={handleDirectPrint}
+              className="bg-[#fad02f] text-black px-4 py-2 rounded-full hover:opacity-90 transition font-semibold flex items-center justify-center"
+            >
+              <i className="fas fa-file-pdf mr-2"></i>
+              Save as PDF
+            </button>
+          </div>
+
           {/* Show download link if PDF is ready */}
           {printingStatus === 'ready' && downloadUrl && (
             <div className="mt-4 p-3 bg-green-50 rounded-lg">
