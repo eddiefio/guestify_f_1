@@ -1,5 +1,5 @@
 // pages/api/printqr-pdf.js
-import { supabase } from '../../lib/supabase';
+import { createServerClient } from '../../lib/supabase';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
 import path from 'path';
@@ -13,13 +13,18 @@ export default async function handler(req, res) {
   try {
     const { propertyId } = req.query;
 
-    // Verify authentication from cookie
-    const authCookie = req.headers.cookie;
-    if (!authCookie || !authCookie.includes('supabase-auth=true')) {
+    // Create a Supabase server client with the request/response for auth
+    const supabase = createServerClient(req, res);
+    
+    // Get the current user session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError || !session) {
+      console.error('Auth error:', sessionError || 'No session found');
       return res.status(401).json({ error: 'Unauthorized access' });
     }
 
-    // Fetch property details
+    // Fetch property details with the authenticated client
     const { data: property, error: propertyError } = await supabase
       .from('apartments')
       .select('id, host_id, name, address, city')
@@ -27,7 +32,14 @@ export default async function handler(req, res) {
       .single();
 
     if (propertyError || !property) {
+      console.error('Property error:', propertyError || 'Property not found');
       return res.status(404).json({ error: 'Property not found' });
+    }
+
+    // Additional security check: verify the user is the owner of the property
+    if (property.host_id !== session.user.id) {
+      console.error('Unauthorized: User is not the property owner');
+      return res.status(403).json({ error: 'You do not have permission to access this property' });
     }
 
     // Generate menu URL
@@ -97,7 +109,7 @@ export default async function handler(req, res) {
     doc.end();
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error generating PDF:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
