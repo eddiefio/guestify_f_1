@@ -11,6 +11,7 @@ export default function DeleteProperty() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState(null);
+  const [deleteProgress, setDeleteProgress] = useState({ step: '', completed: false });
   const router = useRouter();
   const { propertyId } = router.query;
 
@@ -39,21 +40,78 @@ export default function DeleteProperty() {
   }, [propertyId]);
 
   const handleDelete = async (e) => {
-    e.preventDefault(); // Importante per gestire il form correttamente
+    e.preventDefault();
     try {
       setDeleting(true);
-      const { error } = await supabase
+      
+      // 1. First, get all order IDs for this property to find related order items
+      setDeleteProgress({ step: 'Finding orders...', completed: false });
+      const { data: orders, error: ordersError } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('apartment_id', propertyId);
+        
+      if (ordersError) throw ordersError;
+      
+      // 2. Delete all order items related to these orders
+      if (orders && orders.length > 0) {
+        const orderIds = orders.map(order => order.id);
+        setDeleteProgress({ step: 'Deleting order items...', completed: false });
+        
+        const { error: orderItemsError } = await supabase
+          .from('order_items')
+          .delete()
+          .in('order_id', orderIds);
+          
+        if (orderItemsError) throw orderItemsError;
+      }
+      
+      // 3. Delete all orders for this property
+      setDeleteProgress({ step: 'Deleting orders...', completed: false });
+      const { error: deleteOrdersError } = await supabase
+        .from('orders')
+        .delete()
+        .eq('apartment_id', propertyId);
+        
+      if (deleteOrdersError) throw deleteOrdersError;
+      
+      // 4. Find all inventory items for this property to identify product IDs
+      setDeleteProgress({ step: 'Finding inventory...', completed: false });
+      const { data: inventoryItems, error: inventoryError } = await supabase
+        .from('inventory')
+        .select('product_id')
+        .eq('apartment_id', propertyId);
+        
+      if (inventoryError) throw inventoryError;
+      
+      // 5. Delete all inventory items for this property
+      setDeleteProgress({ step: 'Deleting inventory...', completed: false });
+      const { error: deleteInventoryError } = await supabase
+        .from('inventory')
+        .delete()
+        .eq('apartment_id', propertyId);
+        
+      if (deleteInventoryError) throw deleteInventoryError;
+      
+      // 6. Finally delete the property itself
+      setDeleteProgress({ step: 'Deleting property...', completed: false });
+      const { error: deletePropertyError } = await supabase
         .from('apartments')
         .delete()
         .eq('id', propertyId);
-
-      if (error) throw error;
+        
+      if (deletePropertyError) throw deletePropertyError;
       
-      // Redirect to dashboard after successful deletion
-      router.push('/host/dashboard');
+      setDeleteProgress({ step: 'Complete!', completed: true });
+      
+      // 7. Redirect to dashboard after successful deletion
+      setTimeout(() => {
+        router.push('/host/dashboard');
+      }, 1000);
+      
     } catch (err) {
       console.error('Error deleting property:', err);
-      setError('Failed to delete property');
+      setError(`Failed to delete property: ${err.message}`);
       setDeleting(false);
     }
   };
@@ -100,11 +158,31 @@ export default function DeleteProperty() {
               </div>
               <div className="ml-3">
                 <p className="text-sm text-yellow-700">
-                  This action cannot be undone. All data related to this property will be permanently deleted.
+                  This action cannot be undone. All data related to this property will be permanently deleted, including:
                 </p>
+                <ul className="list-disc list-inside text-sm text-yellow-700 mt-2">
+                  <li>All orders and order history</li>
+                  <li>All inventory items</li>
+                  <li>All QR codes and product data</li>
+                </ul>
               </div>
             </div>
           </div>
+          
+          {deleting && deleteProgress.step && (
+            <div className="mb-4 bg-blue-50 p-3 rounded">
+              <div className="flex items-center">
+                <div className="mr-2">
+                  {deleteProgress.completed ? (
+                    <i className="fas fa-check-circle text-green-500"></i>
+                  ) : (
+                    <i className="fas fa-spinner fa-spin text-blue-500"></i>
+                  )}
+                </div>
+                <p className="text-sm text-blue-700">{deleteProgress.step}</p>
+              </div>
+            </div>
+          )}
           
           <ButtonLayout 
             cancelHref="/host/dashboard"
