@@ -3,12 +3,19 @@ import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
 
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
+    // Inizializza il client Supabase con le credenziali corrette
     const supabase = createServerSupabaseClient({ req, res });
     const { propertyId } = req.query;
 
@@ -16,11 +23,12 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Property ID is required' });
     }
 
-    // Verify authentication
-    const { data: { session }, error: authError } = await supabase.auth.getSession();
+    // Verifica la sessione
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    if (authError || !session) {
-      console.error('Authentication error:', authError);
+    if (!session) {
       return res.status(401).json({ error: 'Unauthorized - Please sign in' });
     }
 

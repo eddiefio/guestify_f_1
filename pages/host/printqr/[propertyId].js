@@ -133,74 +133,55 @@ const handleSaveAsPDF = async () => {
   try {
     setPrintingStatus('preparing');
     
-    // Use the existing server API to generate the PDF
+    // Ottieni il token di accesso dalla sessione Supabase
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      throw new Error('No active session found');
+    }
+
     const response = await fetch(`/api/printqr-pdf?propertyId=${propertyId}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/pdf',
+        'Authorization': `Bearer ${session.access_token}`,
       },
-      credentials: 'include'  // Critical: Send authentication cookies with the request
+      credentials: 'include'
     });
-    
-    // If we get a non-success response, handle it appropriately
+
     if (!response.ok) {
       let errorMessage = `Error (${response.status})`;
-      
-      // Try to get more detailed error information
       try {
-        // Try to parse JSON error
         const errorData = await response.json();
         errorMessage = errorData.error || errorMessage;
-      } catch (parseError) {
-        // If not JSON, try to get text
-        try {
-          errorMessage = await response.text() || errorMessage;
-        } catch (textError) {
-          // If all else fails, use status text
-          errorMessage = response.statusText || errorMessage;
-        }
+      } catch (e) {
+        errorMessage = await response.text() || errorMessage;
       }
-      
-      // Log the error for debugging
-      console.error('PDF generation failed:', response.status, errorMessage);
-      
-      // Handle specific status codes
-      if (response.status === 401) {
-        throw new Error('Authentication error: Please sign in again');
-      } else if (response.status === 403) {
-        throw new Error('Access denied: You do not have permission to download this QR code');
-      } else if (response.status === 404) {
-        throw new Error('Property not found');
-      } else {
-        throw new Error(`Failed to generate PDF: ${errorMessage}`);
-      }
+      throw new Error(errorMessage);
     }
-    
-    // Get the PDF blob from the response
+
     const pdfBlob = await response.blob();
-    
-    // Create a URL for the blob
     const pdfUrl = URL.createObjectURL(pdfBlob);
     
-    // Create a filename with the property name and date
+    // Crea il nome del file
     const filename = `guestify-menu-${propertyName.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`;
     
-    // Create an invisible link element to trigger the download
+    // Download automatico
     const a = document.createElement('a');
     a.href = pdfUrl;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     
-    // Clean up
-    setTimeout(() => {
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(pdfUrl);
-    }, 100);
-    
-    // Also open the PDF in a new tab for viewing
+    // Apri in una nuova tab
     window.open(pdfUrl, '_blank');
     
+    // Pulizia
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(pdfUrl);
+    }, 100);
+
     setPrintingStatus('ready');
     setDownloadUrl(pdfUrl);
   } catch (error) {
@@ -208,7 +189,7 @@ const handleSaveAsPDF = async () => {
     setPrintingStatus('error');
     setError(error.message || 'Failed to generate PDF');
   }
-}
+};
 
   // Show loading while checking Stripe status
   if (isCheckingStripe) {
