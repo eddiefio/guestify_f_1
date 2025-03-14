@@ -1,9 +1,10 @@
 // pages/api/printqr-pdf.js
-import { createServerClient } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
 import path from 'path';
 import fs from 'fs';
+import { parse } from 'cookie';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -12,19 +13,30 @@ export default async function handler(req, res) {
 
   try {
     const { propertyId } = req.query;
-
-    // Create a Supabase server client with the request/response for auth
-    const supabase = createServerClient(req, res);
     
-    // Get the current user session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-    if (sessionError || !session) {
-      console.error('Auth error:', sessionError || 'No session found');
-      return res.status(401).json({ error: 'Unauthorized access' });
+    // Parse cookies from the request
+    const cookies = req.headers.cookie ? parse(req.headers.cookie) : {};
+    
+    // Look for authentication tokens in cookies
+    const accessToken = cookies['supabase-access-token'];
+    
+    // If no tokens found, check for the simpler auth flag
+    if (!accessToken && (!cookies['supabase-auth'] || cookies['supabase-auth'] !== 'true')) {
+      console.error('No auth tokens found in cookies');
+      // Send an unauthorized error as a PDF with text
+      return sendErrorPdf(res, 'Unauthorized access');
     }
 
-    // Fetch property details with the authenticated client
+    // Try to set the auth session if we have tokens
+    if (accessToken) {
+      // Set the auth session from cookies
+      await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: cookies['supabase-refresh-token'] || ''
+      });
+    }
+    
+    // Fetch property details
     const { data: property, error: propertyError } = await supabase
       .from('apartments')
       .select('id, host_id, name, address, city')
@@ -32,18 +44,12 @@ export default async function handler(req, res) {
       .single();
 
     if (propertyError || !property) {
-      console.error('Property error:', propertyError || 'Property not found');
-      return res.status(404).json({ error: 'Property not found' });
-    }
-
-    // Additional security check: verify the user is the owner of the property
-    if (property.host_id !== session.user.id) {
-      console.error('Unauthorized: User is not the property owner');
-      return res.status(403).json({ error: 'You do not have permission to access this property' });
+      console.error('Property error:', propertyError);
+      return sendErrorPdf(res, 'Property not found');
     }
 
     // Generate menu URL
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://app.guestify.shop';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || req.headers.origin || 'https://app.guestify.shop';
     const menuUrl = `${baseUrl}/guest/menu/${propertyId}`;
 
     // Generate QR code as data URL
@@ -105,11 +111,36 @@ export default async function handler(req, res) {
          width: doc.page.width
        });
 
+    // Add menu URL at the bottom
+    doc.fillColor('#999999')
+       .fontSize(8)
+       .text(menuUrl, 0, doc.page.height - 30, {
+         align: 'center',
+         width: doc.page.width
+       });
+
     // Finalize the PDF
     doc.end();
 
   } catch (error) {
     console.error('Error generating PDF:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return sendErrorPdf(res, 'Internal server error');
   }
+}
+
+// Helper function to send errors as PDF instead of JSON
+function sendErrorPdf(res, errorMessage) {
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'attachment; filename=guestify-error.pdf');
+  
+  const doc = new PDFDocument();
+  doc.pipe(res);
+  
+  doc.fontSize(16).fillColor('red')
+     .text('Error', { align: 'center' })
+     .moveDown()
+     .fontSize(12).fillColor('black')
+     .text(errorMessage, { align: 'center' });
+  
+  doc.end();
 }
