@@ -15,25 +15,28 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Inizializza il client Supabase con le credenziali corrette
-    const supabase = createServerSupabaseClient({ req, res });
+    // Create authenticated Supabase client
+    const supabaseServerClient = createServerSupabaseClient({ req, res });
+    
+    // Check if we have a session
+    const {
+      data: { session },
+    } = await supabaseServerClient.auth.getSession();
+
+    if (!session) {
+      return res.status(401).json({
+        error: 'Not authenticated',
+      });
+    }
+
     const { propertyId } = req.query;
 
     if (!propertyId) {
       return res.status(400).json({ error: 'Property ID is required' });
     }
 
-    // Verifica la sessione
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session) {
-      return res.status(401).json({ error: 'Unauthorized - Please sign in' });
-    }
-
-    // Fetch property details
-    const { data: property, error: propertyError } = await supabase
+    // Fetch property details using the authenticated client
+    const { data: property, error: propertyError } = await supabaseServerClient
       .from('apartments')
       .select('id, host_id, name, address, city')
       .eq('id', propertyId)
@@ -49,7 +52,6 @@ export default async function handler(req, res) {
     }
 
     if (property.host_id !== session.user.id) {
-      console.error('Access denied - user ID mismatch:', property.host_id, session.user.id);
       return res.status(403).json({ error: 'Access denied - you do not own this property' });
     }
 

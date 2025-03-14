@@ -132,32 +132,18 @@ export default function PrintQR() {
 const handleSaveAsPDF = async () => {
   try {
     setPrintingStatus('preparing');
-    
-    // Ottieni il token di accesso dalla sessione Supabase
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-      throw new Error('No active session found');
-    }
 
     const response = await fetch(`/api/printqr-pdf?propertyId=${propertyId}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/pdf',
-        'Authorization': `Bearer ${session.access_token}`,
       },
-      credentials: 'include'
+      credentials: 'same-origin'
     });
 
     if (!response.ok) {
-      let errorMessage = `Error (${response.status})`;
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.error || errorMessage;
-      } catch (e) {
-        errorMessage = await response.text() || errorMessage;
-      }
-      throw new Error(errorMessage);
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to generate PDF');
     }
 
     const pdfBlob = await response.blob();
@@ -174,11 +160,14 @@ const handleSaveAsPDF = async () => {
     a.click();
     
     // Apri in una nuova tab
-    window.open(pdfUrl, '_blank');
+    const newWindow = window.open(pdfUrl, '_blank');
+    if (newWindow === null) {
+      console.warn('Popup blocked - PDF will only download');
+    }
     
     // Pulizia
+    document.body.removeChild(a);
     setTimeout(() => {
-      document.body.removeChild(a);
       URL.revokeObjectURL(pdfUrl);
     }, 100);
 
@@ -187,7 +176,7 @@ const handleSaveAsPDF = async () => {
   } catch (error) {
     console.error('Error creating PDF:', error);
     setPrintingStatus('error');
-    setError(error.message || 'Failed to generate PDF');
+    setError(error.message);
   }
 };
 
