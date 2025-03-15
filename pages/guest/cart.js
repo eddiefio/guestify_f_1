@@ -1,4 +1,4 @@
-// pages/guest/cart.js - Updated version
+// pages/guest/cart.js - Versione aggiornata per passare parametri aggiuntivi
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -60,8 +60,13 @@ export default function Cart() {
         throw new Error('Invalid checkout response: missing orderId');
       }
       
-      // Redirect to payment page
-      router.push(`/guest/payment/${data.orderId}?amount=${data.finalPrice}`);
+      // Calculate subtotal, service fee, and total
+      const subtotal = getCartTotal();
+      const serviceFee = subtotal * 0.15;
+      const finalPrice = subtotal + serviceFee;
+      
+      // Redirect to payment page with additional parameters
+      router.push(`/guest/payment/${data.orderId}?amount=${finalPrice}&propertyId=${propertyId}`);
     } catch (err) {
       console.error('Checkout error:', err);
       setError(err.message || 'Failed to process checkout. Please try again.');

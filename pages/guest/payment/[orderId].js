@@ -1,4 +1,4 @@
-// pages/guest/payment/[orderId].js - Updated version
+// pages/guest/payment/[orderId].js - Con miglioramenti per gestire errori di DB
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { Elements, CardElement, useStripe, useElements, PaymentRequestButtonElement } from '@stripe/react-stripe-js';
@@ -200,17 +200,20 @@ function CheckoutForm({ clientSecret, orderDetails }) {
 
 export default function PaymentPage() {
   const router = useRouter();
-  const { orderId } = router.query;
+  const { orderId, amount } = router.query; // Aggiungiamo amount dalla query
   const [clientSecret, setClientSecret] = useState('');
   const [orderDetails, setOrderDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0); // Contatore per i tentativi
 
   useEffect(() => {
     if (!orderId || !router.isReady) return;
 
     const fetchOrderAndCreateIntent = async () => {
       try {
+        setLoading(true);
+        
         // 1. Fetch order details
         const { data: order, error: orderError } = await supabase
           .from('orders')
@@ -218,20 +221,51 @@ export default function PaymentPage() {
           .eq('id', orderId)
           .single();
 
-        if (orderError) throw orderError;
-        
-        if (!order) {
+        // Se c'è un errore e siamo ancora entro il limite di tentativi
+        if (orderError && retryCount < 3) {
+          console.log(`Attempt ${retryCount + 1}: Error fetching order, retrying in 1s...`);
+          
+          // Ritenta dopo un secondo
+          setTimeout(() => {
+            setRetryCount(prev => prev + 1);
+          }, 1000);
+          return; // Esci e aspetta il prossimo tentativo
+        }
+
+        if (orderError) {
+          // Se abbiamo esaurito i tentativi ma abbiamo i dati nella URL
+          if (amount && orderId) {
+            console.log('Using data from URL parameters instead of database');
+            
+            // Crea un ordine "virtuale" con i dati della URL
+            const parsedAmount = parseFloat(amount);
+            setOrderDetails({
+              id: orderId,
+              total_price: parsedAmount,
+              apartment_id: router.query.propertyId || 'unknown',
+              // Calcoliamo il subtotal e serviceFee basati sull'amount
+              subtotal: parsedAmount * 0.85,
+              serviceFee: parsedAmount * 0.15
+            });
+          } else {
+            // Se non abbiamo dati sufficienti, mostra errore
+            throw orderError;
+          }
+        } else if (order) {
+          console.log('Fetched order details:', order);
+          setOrderDetails(order);
+        } else {
           throw new Error('Order not found');
         }
 
-        console.log('Fetched order details:', order);
+        // Usa l'amount dall'ordine o dalla query
+        const paymentAmount = order?.total_price || parseFloat(amount);
+        const propertyIdToUse = order?.apartment_id || router.query.propertyId;
         
-        // Verify that total_price is defined and is a number
-        if (typeof order.total_price !== 'number') {
+        // Verifica che l'importo sia un numero valido
+        if (typeof paymentAmount !== 'number' || isNaN(paymentAmount)) {
           throw new Error('Invalid order total price');
         }
-
-        setOrderDetails(order);
 
         // 2. Create payment intent
         const response = await fetch('/api/payment/create-intent', {
@@ -240,9 +274,9 @@ export default function PaymentPage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            orderId: order.id,
-            amount: order.total_price,
-            propertyId: order.apartment_id
+            orderId: orderId,
+            amount: paymentAmount,
+            propertyId: propertyIdToUse
           }),
         });
 
@@ -255,17 +289,18 @@ export default function PaymentPage() {
         if (!data.clientSecret) {
           throw new Error('No client secret returned from payment intent');
         }
+        
         setClientSecret(data.clientSecret);
+        setLoading(false);
       } catch (err) {
         console.error('Error fetching order or creating payment intent:', err);
         setError(err.message || 'An error occurred while preparing payment');
-      } finally {
         setLoading(false);
       }
     };
 
     fetchOrderAndCreateIntent();
-  }, [orderId, router.isReady]);
+  }, [orderId, router.isReady, retryCount, amount, router.query]);
 
   const options = clientSecret ? {
     clientSecret,
