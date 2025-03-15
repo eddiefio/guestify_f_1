@@ -1,4 +1,4 @@
-// pages/api/orders/checkout.js - Updated version
+// pages/api/orders/checkout.js - Fixed version
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase with service role key
@@ -33,6 +33,9 @@ export default async function handler(req, res) {
       });
     }
 
+    // Inventory check and storage for later use
+    const inventoryItems = {};
+    
     // Check inventory for each product
     for (const item of cart) {
       const { data: inventoryItem, error: inventoryError } = await supabaseAdmin
@@ -58,6 +61,9 @@ export default async function handler(req, res) {
           available: inventoryItem.quantity
         });
       }
+      
+      // Store inventory item for later use
+      inventoryItems[item.productId] = inventoryItem;
     }
 
     // Calculate subtotal and service fee
@@ -116,6 +122,16 @@ export default async function handler(req, res) {
         return res.status(500).json({ 
           error: 'Failed to create order items',
           details: itemError.message 
+        });
+      }
+
+      // Get the inventory item from the stored map
+      const inventoryItem = inventoryItems[item.productId];
+      if (!inventoryItem) {
+        console.error('Missing inventory item for product:', item.productId);
+        return res.status(500).json({ 
+          error: 'Failed to update inventory - missing item data',
+          details: `Product ID: ${item.productId}` 
         });
       }
 
