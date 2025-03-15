@@ -1,7 +1,11 @@
 // pages/api/payment/confirm.js
 import { supabase } from '../../../lib/supabase';
 
-export default async function handler(req, res) {
+export const config = {
+  runtime: 'edge',
+}
+
+export default function Confirm() {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
