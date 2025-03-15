@@ -205,37 +205,31 @@ export default function PaymentPage() {
           .single();
 
         if (orderError) throw orderError;
+        setOrderDetails(order);
 
         // 2. Create payment intent
         const response = await fetch('/api/payment/create-intent', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify({
-            orderId,
-            amount: order.total_price,
-            propertyId: order.apartment_id,
+            orderId: order.id,
+            amount: order.total_amount,
+            propertyId: order.property_id
           }),
         });
 
-        const result = await response.json();
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to create payment intent');
+        }
 
-        if (!response.ok) throw new Error(result.error || 'Failed to create payment intent');
-
-        // Calculate subtotal and service fee
-        const serviceFee = order.total_price * 0.15;
-        const subtotal = order.total_price - serviceFee;
-
-        // Set state
-        setOrderDetails({
-          orderId,
-          finalPrice: order.total_price,
-          subtotal,
-          serviceFee,
-        });
-        setClientSecret(result.clientSecret);
+        setClientSecret(data.clientSecret);
       } catch (err) {
         console.error('Error:', err);
-        setError(err.message || 'An error occurred');
+        setError(err.message);
       } finally {
         setLoading(false);
       }
@@ -244,39 +238,18 @@ export default function PaymentPage() {
     fetchOrderAndCreateIntent();
   }, [orderId, router.isReady]);
 
-  if (loading) {
-    return (
-      <div className="text-center py-8">
-        <i className="fas fa-spinner fa-spin text-2xl text-gray-500"></i>
-        <p className="mt-2">Preparing your payment...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-6">
-        <p>{error}</p>
-        <button
-          onClick={() => router.back()}
-          className="mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded"
-        >
-          Go Back
-        </button>
-      </div>
-    );
-  }
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+  if (!clientSecret) return <div>Unable to initialize payment</div>;
 
   return (
-    <div className="max-w-md mx-auto">
-      <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Complete Payment</h2>
-      
-      {clientSecret && orderDetails && (
+    <GuestLayout>
+      <div className="max-w-4xl mx-auto p-4">
         <Elements stripe={stripePromise} options={{ clientSecret }}>
           <CheckoutForm clientSecret={clientSecret} orderDetails={orderDetails} />
         </Elements>
-      )}
-    </div>
+      </div>
+    </GuestLayout>
   );
 }
 
