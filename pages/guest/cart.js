@@ -1,4 +1,4 @@
-// pages/guest/cart.js
+// pages/guest/cart.js - Updated version
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -10,12 +10,19 @@ export default function Cart() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const router = useRouter();
-  // New states for handling input editing
   const [editingInputs, setEditingInputs] = useState({});
   const [tempInputValues, setTempInputValues] = useState({});
 
   const handleCheckout = async () => {
-    if (cart.length === 0) return;
+    if (cart.length === 0) {
+      setError('Your cart is empty');
+      return;
+    }
+    
+    if (!propertyId) {
+      setError('Missing property ID');
+      return;
+    }
     
     setLoading(true);
     setError(null);
@@ -28,7 +35,7 @@ export default function Cart() {
         name: item.name
       }));
 
-      console.log('Sending cart to checkout:', { propertyId, cart: cartItems }); // Log migliorato
+      console.log('Sending cart to checkout:', { propertyId, cart: cartItems });
 
       const response = await fetch('/api/orders/checkout', {
         method: 'POST',
@@ -41,24 +48,23 @@ export default function Cart() {
         }),
       });
       
-      const data = await response.json();
-      
       if (!response.ok) {
-        throw new Error(data.error || data.details || 'Checkout failed');
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.details || 'Checkout failed');
       }
       
-      // Aggiungi log per verificare i dati ricevuti
+      const data = await response.json();
       console.log('Checkout response:', data);
       
-      if (!data.orderId || !data.finalPrice) {
-        throw new Error('Invalid checkout response: missing orderId or finalPrice');
+      if (!data.orderId) {
+        throw new Error('Invalid checkout response: missing orderId');
       }
       
+      // Redirect to payment page
       router.push(`/guest/payment/${data.orderId}?amount=${data.finalPrice}`);
     } catch (err) {
       console.error('Checkout error:', err);
-      setError(err.message || 'Failed to process checkout');
-    } finally {
+      setError(err.message || 'Failed to process checkout. Please try again.');
       setLoading(false);
     }
   };
@@ -121,47 +127,38 @@ export default function Cart() {
                               : item.quantity
                           }
                           onFocus={(e) => {
-                            // Mark this input as being edited
                             setEditingInputs(prev => ({
                               ...prev,
                               [itemKey]: true
                             }));
-                            // Store the current value for editing
                             setTempInputValues(prev => ({
                               ...prev,
                               [itemKey]: e.target.value
                             }));
                           }}
                           onChange={(e) => {
-                            // Update the temporary value during editing
                             setTempInputValues(prev => ({
                               ...prev,
                               [itemKey]: e.target.value
                             }));
                           }}
                           onBlur={(e) => {
-                            // When focus is lost, validate and update the actual quantity
                             let newQty = parseInt(e.target.value, 10);
                             
-                            // If the parsed value is not a number or less than 1, default to 1
                             if (isNaN(newQty) || newQty < 1) {
                               newQty = 1;
                             }
                             
-                            // Enforce maximum quantity
                             const maxQty = item.maxQuantity || 99;
                             newQty = Math.min(newQty, maxQty);
                             
-                            // If exceeding max quantity, show an error
                             if (newQty > maxQty) {
                               setError(`Only ${maxQty} units of "${item.name}" available.`);
                               setTimeout(() => setError(null), 3000);
                             }
                             
-                            // Update the cart
                             updateCartItem(item.productId, item.propertyId, newQty);
                             
-                            // Mark input as no longer being edited
                             setEditingInputs(prev => ({
                               ...prev,
                               [itemKey]: false
@@ -170,7 +167,6 @@ export default function Cart() {
                           min="1"
                           max={item.maxQuantity || 99}
                         />
-                        {/* Optional: Add validation message for max quantity */}
                         {item.maxQuantity && (
                           <div className="text-xs text-gray-500 mt-1">
                             Max: {item.maxQuantity}
@@ -221,8 +217,12 @@ export default function Cart() {
             <div className="mt-4 flex justify-end">
               <button
                 onClick={handleCheckout}
-                disabled={loading}
-                className="bg-[#fad02f] text-black px-3 py-1 rounded-full text-sm hover:bg-[#fad02f]/90 transition font-semibold"
+                disabled={loading || cart.length === 0}
+                className={`${
+                  loading || cart.length === 0 
+                    ? 'bg-gray-300 cursor-not-allowed' 
+                    : 'bg-[#fad02f] hover:bg-[#fad02f]/90'
+                } text-black px-3 py-1 rounded-full text-sm transition font-semibold`}
               >
                 {loading ? 'Processing...' : 'Checkout'}
               </button>

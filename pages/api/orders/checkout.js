@@ -1,4 +1,4 @@
-// pages/api/orders/checkout.js
+// pages/api/orders/checkout.js - Updated version
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase with service role key
@@ -11,12 +11,21 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { cart, propertyId } = req.body;
-
-  console.log('Processing checkout:', { propertyId, cart }); // Debug log
-
   try {
-    // Verifica che tutti gli elementi del carrello abbiano un productId
+    const { cart, propertyId } = req.body;
+
+    console.log('Processing checkout:', { propertyId, cart }); // Debug log
+
+    // Validate required data
+    if (!propertyId) {
+      return res.status(400).json({ error: 'Property ID is required' });
+    }
+
+    if (!cart || !Array.isArray(cart) || cart.length === 0) {
+      return res.status(400).json({ error: 'Cart cannot be empty' });
+    }
+
+    // Verify that all cart items have a productId
     if (!cart.every(item => item.productId)) {
       return res.status(400).json({
         error: 'Invalid cart data: missing productId',
@@ -24,7 +33,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // Verifica l'inventario per ogni prodotto
+    // Check inventory for each product
     for (const item of cart) {
       const { data: inventoryItem, error: inventoryError } = await supabaseAdmin
         .from('inventory')
@@ -51,23 +60,22 @@ export default async function handler(req, res) {
       }
     }
 
-    // Procedi con il resto della logica di checkout
     // Calculate subtotal and service fee
     let subtotal = 0;
     for (const item of cart) {
       subtotal += item.price * item.quantity;
     }
-    const serviceFee = subtotal * 0.12; // 12% service fee
+    const serviceFee = subtotal * 0.15; // 15% service fee
     const finalPrice = subtotal + serviceFee;
 
-    // Create new order using admin client
+    // Create new order
     const { data: newOrder, error: orderError } = await supabaseAdmin
       .from('orders')
       .insert([{
         apartment_id: propertyId,
         total_price: finalPrice,
         order_date: new Date().toISOString(),
-        payment_status: 'pending'  // Corretto da 'status' a 'payment_status'
+        payment_status: 'pending'
       }])
       .select()
       .single();
@@ -82,12 +90,9 @@ export default async function handler(req, res) {
 
     const orderId = newOrder.id;
 
-    // Prima di processare il carrello, verifica che i dati siano corretti
-    console.log('Cart items:', cart); // Aggiungi questo log per debug
-
     // Process each cart item
     for (const item of cart) {
-      // Verifica che product_id sia presente e valido
+      // Verify that product_id is present and valid
       if (!item.productId) {
         console.error('Invalid product ID for item:', item);
         return res.status(400).json({ 
@@ -96,31 +101,7 @@ export default async function handler(req, res) {
         });
       }
 
-      // Verify inventory using admin client
-      const { data: inventoryItem, error: inventoryFetchError } = await supabaseAdmin
-        .from('inventory')
-        .select('quantity')
-        .eq('apartment_id', propertyId)
-        .eq('product_id', item.productId)
-        .single();
-
-      if (inventoryFetchError || !inventoryItem) {
-        console.error('Inventory fetch error:', inventoryFetchError);
-        return res.status(400).json({ 
-          error: 'Product not available',
-          productId: item.productId 
-        });
-      }
-
-      if (inventoryItem.quantity < item.quantity) {
-        return res.status(400).json({ 
-          error: 'Insufficient stock',
-          product: item.name,
-          available: inventoryItem.quantity 
-        });
-      }
-
-      // Insert order item using admin client
+      // Insert order item
       const { error: itemError } = await supabaseAdmin
         .from('order_items')
         .insert([{
@@ -138,7 +119,7 @@ export default async function handler(req, res) {
         });
       }
 
-      // Update inventory using admin client
+      // Update inventory
       const { error: updateError } = await supabaseAdmin
         .from('inventory')
         .update({ 

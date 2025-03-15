@@ -1,14 +1,15 @@
-// pages/guest/payment/[orderId].js
+// pages/guest/payment/[orderId].js - Updated version
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { Elements } from '@stripe/stripe-js';
+import { Elements, CardElement, useStripe, useElements, PaymentRequestButtonElement } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import GuestLayout from '../../../components/layout/GuestLayout';
 import { supabase } from '../../../lib/supabase';
-import { CardElement, PaymentRequestButtonElement } from '@stripe/react-stripe-js';
 
+// Initialize Stripe outside of component to avoid re-initialization
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
+// Separate Payment Form component to use hooks properly
 function CheckoutForm({ clientSecret, orderDetails }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -19,13 +20,13 @@ function CheckoutForm({ clientSecret, orderDetails }) {
 
   // Set up Apple Pay / Google Pay
   useEffect(() => {
-    if (stripe) {
+    if (stripe && orderDetails && orderDetails.total_price) {
       const pr = stripe.paymentRequest({
         country: 'IT',
         currency: 'eur',
         total: {
           label: 'Guestify Order',
-          amount: Math.round(orderDetails.finalPrice * 100), // Convert to cents
+          amount: Math.round(orderDetails.total_price * 100), // Convert to cents
         },
         requestPayerName: true,
         requestPayerEmail: true,
@@ -42,17 +43,24 @@ function CheckoutForm({ clientSecret, orderDetails }) {
       pr.on('paymentmethod', async (e) => {
         setProcessing(true);
         
-        const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-          payment_method: e.paymentMethod.id,
-        });
+        try {
+          const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+            payment_method: e.paymentMethod.id,
+          });
 
-        if (error) {
-          setPaymentError(error.message);
+          if (error) {
+            setPaymentError(error.message);
+            e.complete('fail');
+            setProcessing(false);
+          } else {
+            e.complete('success');
+            handlePaymentSuccess(paymentIntent);
+          }
+        } catch (err) {
+          console.error('Payment error:', err);
           e.complete('fail');
           setProcessing(false);
-        } else {
-          e.complete('success');
-          handlePaymentSuccess(paymentIntent);
+          setPaymentError('Payment processing failed. Please try again.');
         }
       });
     }
@@ -68,34 +76,46 @@ function CheckoutForm({ clientSecret, orderDetails }) {
     setProcessing(true);
     setPaymentError(null);
 
-    // Complete payment when the submit button is clicked
-    const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-      payment_method: {
-        card: elements.getElement(CardElement),
-      },
-    });
+    try {
+      // Complete payment when the submit button is clicked
+      const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: elements.getElement(CardElement),
+        },
+      });
 
-    if (error) {
-      setPaymentError(error.message);
+      if (error) {
+        setPaymentError(error.message);
+        setProcessing(false);
+      } else {
+        handlePaymentSuccess(paymentIntent);
+      }
+    } catch (err) {
+      console.error('Payment submission error:', err);
+      setPaymentError('Payment processing failed. Please try again.');
       setProcessing(false);
-    } else {
-      handlePaymentSuccess(paymentIntent);
     }
   };
 
   const handlePaymentSuccess = async (paymentIntent) => {
-    // Update order status in database
-    await fetch('/api/payment/confirm', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        orderId: orderDetails.orderId,
-        paymentIntentId: paymentIntent.id,
-      }),
-    });
+    try {
+      // Update order status in database
+      await fetch('/api/payment/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: orderDetails.id,
+          paymentIntentId: paymentIntent.id,
+        }),
+      });
 
-    // Redirect to success page
-    router.push(`/guest/checkout?orderId=${orderDetails.orderId}&subtotal=${orderDetails.subtotal}&serviceFee=${orderDetails.serviceFee}&finalPrice=${orderDetails.finalPrice}`);
+      // Redirect to success page
+      router.push(`/guest/checkout?orderId=${orderDetails.id}&subtotal=${orderDetails.subtotal || 0}&serviceFee=${orderDetails.serviceFee || 0}&finalPrice=${orderDetails.total_price || 0}`);
+    } catch (err) {
+      console.error('Error confirming payment:', err);
+      setPaymentError('Payment was processed but we had trouble updating your order. Please contact support.');
+      setProcessing(false);
+    }
   };
 
   return (
@@ -104,15 +124,15 @@ function CheckoutForm({ clientSecret, orderDetails }) {
         <h3 className="text-lg font-semibold mb-4">Order Summary</h3>
         <div className="flex justify-between mb-2">
           <span>Subtotal:</span>
-          <span>€{orderDetails.subtotal.toFixed(2)}</span>
+          <span>€{orderDetails?.subtotal?.toFixed(2) || (orderDetails?.total_price * 0.85).toFixed(2)}</span>
         </div>
         <div className="flex justify-between mb-2">
           <span>Service Fee (15%):</span>
-          <span>€{orderDetails.serviceFee.toFixed(2)}</span>
+          <span>€{orderDetails?.serviceFee?.toFixed(2) || (orderDetails?.total_price * 0.15).toFixed(2)}</span>
         </div>
         <div className="flex justify-between font-semibold">
           <span>Total:</span>
-          <span>€{orderDetails.finalPrice.toFixed(2)}</span>
+          <span>€{orderDetails?.total_price?.toFixed(2) || '0.00'}</span>
         </div>
       </div>
 
@@ -206,7 +226,7 @@ export default function PaymentPage() {
 
         console.log('Fetched order details:', order);
         
-        // Verifica che total_price sia definito e sia un numero
+        // Verify that total_price is defined and is a number
         if (typeof order.total_price !== 'number') {
           throw new Error('Invalid order total price');
         }
@@ -232,10 +252,13 @@ export default function PaymentPage() {
         }
 
         const data = await response.json();
+        if (!data.clientSecret) {
+          throw new Error('No client secret returned from payment intent');
+        }
         setClientSecret(data.clientSecret);
       } catch (err) {
-        console.error('Error:', err);
-        setError(err.message);
+        console.error('Error fetching order or creating payment intent:', err);
+        setError(err.message || 'An error occurred while preparing payment');
       } finally {
         setLoading(false);
       }
@@ -244,7 +267,7 @@ export default function PaymentPage() {
     fetchOrderAndCreateIntent();
   }, [orderId, router.isReady]);
 
-  const options = {
+  const options = clientSecret ? {
     clientSecret,
     appearance: {
       theme: 'stripe',
@@ -252,58 +275,64 @@ export default function PaymentPage() {
         colorPrimary: '#0570de',
       },
     },
-  };
+  } : {};
 
   if (loading) {
     return (
-      <GuestLayout>
-        <div className="max-w-4xl mx-auto p-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="text-center mt-4">Loading payment details...</p>
-        </div>
-      </GuestLayout>
+      <div className="max-w-4xl mx-auto p-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+        <p className="text-center mt-4">Loading payment details...</p>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <GuestLayout>
-        <div className="max-w-4xl mx-auto p-4">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            <p>{error}</p>
-          </div>
+      <div className="max-w-4xl mx-auto p-4">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <p>{error}</p>
+          <button
+            onClick={() => router.back()}
+            className="mt-4 bg-blue-500 text-white px-3 py-1 rounded"
+          >
+            Back to Cart
+          </button>
         </div>
-      </GuestLayout>
+      </div>
     );
   }
 
   if (!clientSecret) {
     return (
-      <GuestLayout>
-        <div className="max-w-4xl mx-auto p-4">
-          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
-            <p>Unable to initialize payment. Please try again.</p>
-          </div>
+      <div className="max-w-4xl mx-auto p-4">
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+          <p>Unable to initialize payment. Please try again.</p>
+          <button
+            onClick={() => router.back()}
+            className="mt-4 bg-blue-500 text-white px-3 py-1 rounded"
+          >
+            Back to Cart
+          </button>
         </div>
-      </GuestLayout>
+      </div>
     );
   }
 
   return (
-    <GuestLayout>
-      <div className="max-w-4xl mx-auto p-4">
-        {orderDetails && (
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold mb-2">Order Summary</h2>
-            <p className="text-gray-600">Order ID: {orderDetails.id}</p>
-            <p className="text-gray-600">Total Amount: €{orderDetails.total_price.toFixed(2)}</p>
-          </div>
-        )}
+    <div className="max-w-4xl mx-auto p-4">
+      {orderDetails && (
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold mb-2">Order Summary</h2>
+          <p className="text-gray-600">Order ID: {orderDetails.id}</p>
+          <p className="text-gray-600">Total Amount: €{orderDetails.total_price.toFixed(2)}</p>
+        </div>
+      )}
+      {clientSecret && (
         <Elements stripe={stripePromise} options={options}>
           <CheckoutForm clientSecret={clientSecret} orderDetails={orderDetails} />
         </Elements>
-      </div>
-    </GuestLayout>
+      )}
+    </div>
   );
 }
 
