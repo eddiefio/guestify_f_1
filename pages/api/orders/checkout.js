@@ -1,5 +1,10 @@
 // pages/api/orders/checkout.js
-import { supabase } from '../../../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase with service role key
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -21,14 +26,14 @@ export default async function handler(req, res) {
     const serviceFee = subtotal * 0.12; // 12% service fee
     const finalPrice = subtotal + serviceFee;
 
-    // Create new order
-    const { data: newOrder, error: orderError } = await supabase
+    // Create new order using admin client
+    const { data: newOrder, error: orderError } = await supabaseAdmin
       .from('orders')
       .insert([{
         apartment_id: propertyId,
         total_price: finalPrice,
         order_date: new Date().toISOString(),
-        status: 'pending' // Add initial status
+        status: 'pending'
       }])
       .select()
       .single();
@@ -45,8 +50,8 @@ export default async function handler(req, res) {
 
     // Process each cart item
     for (const item of cart) {
-      // Verify inventory
-      const { data: inventoryItem, error: inventoryFetchError } = await supabase
+      // Verify inventory using admin client
+      const { data: inventoryItem, error: inventoryFetchError } = await supabaseAdmin
         .from('inventory')
         .select('quantity')
         .eq('apartment_id', propertyId)
@@ -69,8 +74,8 @@ export default async function handler(req, res) {
         });
       }
 
-      // Insert order item
-      const { error: itemError } = await supabase
+      // Insert order item using admin client
+      const { error: itemError } = await supabaseAdmin
         .from('order_items')
         .insert([{
           order_id: orderId,
@@ -87,8 +92,8 @@ export default async function handler(req, res) {
         });
       }
 
-      // Update inventory
-      const { error: updateError } = await supabase
+      // Update inventory using admin client
+      const { error: updateError } = await supabaseAdmin
         .from('inventory')
         .update({ 
           quantity: inventoryItem.quantity - item.quantity 
