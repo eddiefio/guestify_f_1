@@ -24,6 +24,7 @@ export default function AddProduct() {
     description: '',
     category: 'Food and Drinks',
     image_url: '',
+    location: '', // Added location field
   });
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState('');
@@ -86,6 +87,7 @@ export default function AddProduct() {
           price: inventoryItem ? inventoryItem.price : '',
           // Lascia sempre la quantità impostata a 1 per prodotti nuovi
           quantity: '1',
+          location: '', // Initialize location as empty
         });
         
         if (product.image_url) {
@@ -258,6 +260,13 @@ export default function AddProduct() {
         if (error) throw error;
       }
       
+      // Save location data to localStorage if provided
+      if (formData.location && formData.location.trim() !== '') {
+        const locationKey = `product_location_${propertyId}_${productId}`;
+        localStorage.setItem(locationKey, formData.location);
+        console.log('Saved location to localStorage:', locationKey, formData.location);
+      }
+      
       setSuccess(true);
       
       // Redirect after a brief delay
@@ -413,6 +422,21 @@ export default function AddProduct() {
             className="w-full border rounded px-3 py-2 h-24"
             placeholder="Product description"
           />
+        </div>
+
+        <div>
+          <label className="block text-gray-700 mb-1 font-medium">Location in Property:</label>
+          <input
+            type="text"
+            name="location"
+            value={formData.location}
+            onChange={handleChange}
+            className="w-full border rounded px-3 py-2"
+            placeholder="e.g., Kitchen cabinet, Refrigerator, Bathroom shelf"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            This helps guests find the product. Only visible to guests, not stored in database.
+          </p>
         </div>
 
         <div>

@@ -17,6 +17,7 @@ export default function EditProduct() {
     description: '',
     category: '',
     image_url: '',
+    location: '', // Added location field
   });
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState('');
@@ -61,10 +62,23 @@ export default function EditProduct() {
           description: product.description || '',
           category: product.category || 'Food and Drinks',
           image_url: product.image_url || '',
+          location: '', // Will be updated from localStorage below
         });
         
         if (product.image_url) {
           setPreview(product.image_url);
+        }
+
+        // Load location from localStorage if available
+        if (productId && propertyId) {
+          const locationKey = `product_location_${propertyId}_${productId}`;
+          const savedLocation = localStorage.getItem(locationKey);
+          if (savedLocation) {
+            setFormData(prev => ({
+              ...prev,
+              location: savedLocation
+            }));
+          }
         }
       } catch (err) {
         console.error('Error fetching product:', err);
@@ -153,6 +167,16 @@ export default function EditProduct() {
         .eq('product_id', productId);
         
       if (inventoryError) throw inventoryError;
+      
+      // Save location to localStorage if provided, or remove if empty
+      if (formData.location && formData.location.trim() !== '') {
+        const locationKey = `product_location_${propertyId}_${productId}`;
+        localStorage.setItem(locationKey, formData.location);
+      } else {
+        // If location is empty, remove any existing entry
+        const locationKey = `product_location_${propertyId}_${productId}`;
+        localStorage.removeItem(locationKey);
+      }
       
       setSuccess(true);
       
@@ -262,6 +286,21 @@ export default function EditProduct() {
             className="w-full border rounded px-3 py-2 h-24"
             placeholder="Product description"
           />
+        </div>
+
+        <div>
+          <label className="block text-gray-700 mb-1 font-medium">Location in Property:</label>
+          <input
+            type="text"
+            name="location"
+            value={formData.location}
+            onChange={handleChange}
+            className="w-full border rounded px-3 py-2"
+            placeholder="e.g., Kitchen cabinet, Refrigerator, Bathroom shelf"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            This helps guests find the product. Only visible to guests, not stored in database.
+          </p>
         </div>
 
         <div>

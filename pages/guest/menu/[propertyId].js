@@ -79,11 +79,11 @@ export default function GuestMenu() {
             </div>
           </Link>
 
-          {/* Products */}
-          <Link href={`/guest/menu/${propertyId}?category=Products`}>
+          {/* Objects */}
+          <Link href={`/guest/menu/${propertyId}?category=Objects`}>
             <div className="bg-white rounded-xl shadow flex flex-col items-center justify-center p-6 hover:shadow-lg transition cursor-pointer" style={{ minHeight: '250px' }}>
               <i className="fas fa-box-open fa-4x text-[#fad02f] mb-3"></i>
-              <h3 className="text-lg font-bold text-[#000000] mb-1">Products</h3>
+              <h3 className="text-lg font-bold text-[#000000] mb-1">Objects</h3>
               <p className="text-sm text-gray-600 text-center">
                 View all articles.
               </p>

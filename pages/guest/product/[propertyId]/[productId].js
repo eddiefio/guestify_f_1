@@ -12,6 +12,7 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [productLocation, setProductLocation] = useState('');
   const { addToCart } = useCart();
   const router = useRouter();
   const { propertyId, productId, category } = router.query;
@@ -53,6 +54,15 @@ export default function ProductDetail() {
     }
 
     fetchProduct();
+
+    // Check for saved location in localStorage
+    if (propertyId && productId) {
+      const locationKey = `product_location_${propertyId}_${productId}`;
+      const savedLocation = localStorage.getItem(locationKey);
+      if (savedLocation) {
+        setProductLocation(savedLocation);
+      }
+    }
   }, [propertyId, productId]);
 
   const handleQuantityChange = (change) => {
@@ -152,6 +162,21 @@ export default function ProductDetail() {
           <p className="text-gray-600 mb-4">
             {product.products.description || 'No description available'}
           </p>
+
+          {/* Product Location */}
+          {productLocation && (
+            <div className="mt-3 mb-4 bg-blue-50 p-3 rounded-md">
+              <div className="flex items-start">
+                <div className="flex-shrink-0 mt-0.5">
+                  <i className="fas fa-map-marker-alt text-blue-500 mr-2"></i>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-blue-700">Location in property:</h4>
+                  <p className="text-sm text-blue-600">{productLocation}</p>
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="flex items-center justify-between mb-4">
             <span className="text-lg font-bold text-gray-800">
