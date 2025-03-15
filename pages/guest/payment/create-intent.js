@@ -8,7 +8,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 export const config = {
-  runtime: 'edge',
+  runtime: 'experimental-edge',
 }
 
 export default async function CreateIntent(req) {

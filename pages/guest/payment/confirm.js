@@ -2,7 +2,7 @@
 import { supabase } from '../../../lib/supabase';
 
 export const config = {
-  runtime: 'edge',
+  runtime: 'experimental-edge',
 }
 
 export default async function Confirm(req) {
