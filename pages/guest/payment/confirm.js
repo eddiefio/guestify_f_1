@@ -5,15 +5,21 @@ export const config = {
   runtime: 'edge',
 }
 
-export default function Confirm() {
+export default async function Confirm(req) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }), 
+      { status: 405 }
+    );
   }
 
-  const { orderId, paymentIntentId } = req.body;
+  const { orderId, paymentIntentId } = await req.json();
 
   if (!orderId || !paymentIntentId) {
-    return res.status(400).json({ error: 'Missing required fields' });
+    return new Response(
+      JSON.stringify({ error: 'Missing required fields' }), 
+      { status: 400 }
+    );
   }
 
   try {
@@ -29,9 +35,14 @@ export default function Confirm() {
 
     if (error) throw error;
 
-    return res.status(200).json({ success: true });
+    return new Response(
+      JSON.stringify({ success: true }), 
+      { status: 200 }
+    );
   } catch (error) {
-    console.error('Error confirming payment:', error);
-    return res.status(500).json({ error: error.message || 'Error confirming payment' });
+    return new Response(
+      JSON.stringify({ error: error.message }), 
+      { status: 500 }
+    );
   }
 }

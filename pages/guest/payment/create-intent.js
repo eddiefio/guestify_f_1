@@ -2,10 +2,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Stripe with your secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
-// Initialize Supabase admin client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
@@ -14,15 +11,21 @@ export const config = {
   runtime: 'edge',
 }
 
-export default function CreateIntent() {
+export default async function CreateIntent(req) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }), 
+      { status: 405 }
+    );
   }
 
-  const { orderId, amount, propertyId } = req.body;
+  const { orderId, amount, propertyId } = await req.json();
 
   if (!orderId || !amount || !propertyId) {
-    return res.status(400).json({ error: 'Missing required fields' });
+    return new Response(
+      JSON.stringify({ error: 'Missing required fields' }), 
+      { status: 400 }
+    );
   }
 
   try {
@@ -43,12 +46,11 @@ export default function CreateIntent() {
       .single();
 
     if (profileError) throw profileError;
-
     if (!profile.stripe_account_id) {
-      throw new Error('Host does not have a connected Stripe account');
+      throw new Error('Host has not connected their Stripe account');
     }
 
-    // Calculate the application fee amount (15%)
+    // Calculate application fee (15%)
     const feeAmount = Math.round(parseFloat(amount) * 100 * 0.15);
     
     // Create a payment intent with application fee
@@ -59,21 +61,16 @@ export default function CreateIntent() {
       transfer_data: {
         destination: profile.stripe_account_id,
       },
-      metadata: {
-        orderId,
-        propertyId,
-      },
-      automatic_payment_methods: {
-        enabled: true,
-      },
     });
 
-    // Return the client secret
-    return res.status(200).json({
-      clientSecret: paymentIntent.client_secret,
-    });
+    return new Response(
+      JSON.stringify({ clientSecret: paymentIntent.client_secret }), 
+      { status: 200 }
+    );
   } catch (error) {
-    console.error('Error creating payment intent:', error);
-    return res.status(500).json({ error: error.message || 'Error creating payment intent' });
+    return new Response(
+      JSON.stringify({ error: error.message }), 
+      { status: 500 }
+    );
   }
 }
