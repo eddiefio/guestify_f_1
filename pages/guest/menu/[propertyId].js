@@ -5,7 +5,13 @@ import Link from 'next/link';
 import Image from 'next/image';
 import GuestLayout from '../../../components/layout/GuestLayout';
 import { useCart } from '../../../contexts/CartContext';
-import { supabase } from '../../../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+// Crea un client pubblico separato
+const supabasePublic = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 export default function GuestMenu() {
   const [inventory, setInventory] = useState([]);
@@ -24,7 +30,8 @@ export default function GuestMenu() {
     async function fetchInventory() {
       try {
         setLoading(true);
-        const { data, error } = await supabase
+        // Usa il client pubblico invece di quello autenticato
+        const { data, error } = await supabasePublic
           .from('inventory')
           .select(`
             id,

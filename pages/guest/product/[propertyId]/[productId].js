@@ -5,7 +5,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import GuestLayout from '../../../../components/layout/GuestLayout';
 import { useCart } from '../../../../contexts/CartContext';
-import { supabase } from '../../../../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+const supabasePublic = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 export default function ProductDetail() {
   const [product, setProduct] = useState(null);
@@ -27,7 +32,7 @@ const [tempQuantityValue, setTempQuantityValue] = useState('');
       try {
         setLoading(true);
         
-        const { data, error } = await supabase
+        const { data, error } = await supabasePublic
           .from('inventory')
           .select(`
             id,
@@ -200,7 +205,7 @@ const [tempQuantityValue, setTempQuantityValue] = useState('');
               >
                 −
               </button>
-              // Then modify the quantity input
+              
 <input
   type="text" // Change from number to text
   value={isEditingQuantity ? tempQuantityValue : quantity}
