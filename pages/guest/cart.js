@@ -36,8 +36,8 @@ export default function Cart() {
       
       if (!response.ok) throw new Error(data.error || 'Checkout failed');
       
-      // Redirect to checkout success page
-      router.push(`/guest/checkout?orderId=${data.orderId}`);
+      // Redirect to payment page instead of checkout success
+      router.push(`/guest/payment/${data.orderId}`);
     } catch (err) {
       console.error('Checkout error:', err);
       setError(err.message || 'Failed to process checkout');
