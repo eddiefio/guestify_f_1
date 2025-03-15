@@ -10,6 +10,9 @@ export default function Cart() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const router = useRouter();
+  // New states for handling input editing
+  const [editingInputs, setEditingInputs] = useState({});
+  const [tempInputValues, setTempInputValues] = useState({});
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
@@ -85,34 +88,77 @@ export default function Cart() {
               <tbody className="divide-y divide-gray-200">
                 {cart.map((item) => {
                   const itemSubtotal = item.price * item.quantity;
+                  const itemKey = `${item.propertyId}-${item.productId}`;
+                  
                   return (
-                    <tr key={`${item.propertyId}-${item.productId}`}>
+                    <tr key={itemKey}>
                       <td className="px-2 py-2">{item.name}</td>
                       <td className="px-2 py-2">€{item.price.toFixed(2)}</td>
                       <td className="px-2 py-2">
-                      <input
-  type="number"
-  className="w-16 border rounded px-2 py-1 text-sm"
-  value={item.quantity}
-  min="1"
-  max={item.maxQuantity} // Add max attribute based on available inventory
-  onChange={(e) => {
-    const newQty = parseInt(e.target.value, 10) || 1;
-    const validQty = Math.min(newQty, item.maxQuantity); // Enforce maximum
-    if (validQty !== newQty) {
-      // Provide feedback when quantity is reduced
-      setError(`Only ${item.maxQuantity} units of "${item.name}" available.`);
-      // Clear error message after 3 seconds
-      setTimeout(() => setError(null), 3000);
-    }
-    updateCartItem(item.productId, item.propertyId, validQty);
-  }}
-/>
-{error && (
-  <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
-    {error}
-  </div>
-)}
+                        <input
+                          type="text"
+                          className="w-16 border rounded px-2 py-1 text-sm"
+                          value={
+                            editingInputs[itemKey]
+                              ? tempInputValues[itemKey]
+                              : item.quantity
+                          }
+                          onFocus={(e) => {
+                            // Mark this input as being edited
+                            setEditingInputs(prev => ({
+                              ...prev,
+                              [itemKey]: true
+                            }));
+                            // Store the current value for editing
+                            setTempInputValues(prev => ({
+                              ...prev,
+                              [itemKey]: e.target.value
+                            }));
+                          }}
+                          onChange={(e) => {
+                            // Update the temporary value during editing
+                            setTempInputValues(prev => ({
+                              ...prev,
+                              [itemKey]: e.target.value
+                            }));
+                          }}
+                          onBlur={(e) => {
+                            // When focus is lost, validate and update the actual quantity
+                            let newQty = parseInt(e.target.value, 10);
+                            
+                            // If the parsed value is not a number or less than 1, default to 1
+                            if (isNaN(newQty) || newQty < 1) {
+                              newQty = 1;
+                            }
+                            
+                            // Enforce maximum quantity
+                            const maxQty = item.maxQuantity || 99;
+                            newQty = Math.min(newQty, maxQty);
+                            
+                            // If exceeding max quantity, show an error
+                            if (newQty > maxQty) {
+                              setError(`Only ${maxQty} units of "${item.name}" available.`);
+                              setTimeout(() => setError(null), 3000);
+                            }
+                            
+                            // Update the cart
+                            updateCartItem(item.productId, item.propertyId, newQty);
+                            
+                            // Mark input as no longer being edited
+                            setEditingInputs(prev => ({
+                              ...prev,
+                              [itemKey]: false
+                            }));
+                          }}
+                          min="1"
+                          max={item.maxQuantity || 99}
+                        />
+                        {/* Optional: Add validation message for max quantity */}
+                        {item.maxQuantity && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            Max: {item.maxQuantity}
+                          </div>
+                        )}
                       </td>
                       {/* Trash column */}
                       <td className="px-2 py-2 text-center w-10">

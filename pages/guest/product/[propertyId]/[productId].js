@@ -16,6 +16,9 @@ export default function ProductDetail() {
   const { addToCart } = useCart();
   const router = useRouter();
   const { propertyId, productId, category } = router.query;
+  const [isEditingQuantity, setIsEditingQuantity] = useState(false);
+const [tempQuantityValue, setTempQuantityValue] = useState('');
+
 
   useEffect(() => {
     if (!propertyId || !productId) return;
@@ -197,19 +200,25 @@ export default function ProductDetail() {
               >
                 −
               </button>
-              <input
-  type="number"
-  value={quantity}
-  onChange={(e) => {
-    const val = parseInt(e.target.value);
-    if (!isNaN(val)) {
-      // Ensure value doesn't exceed available stock
-      const validatedQty = Math.min(val, product.quantity);
-      setQuantity(validatedQty);
-    }
+              // Then modify the quantity input
+<input
+  type="text" // Change from number to text
+  value={isEditingQuantity ? tempQuantityValue : quantity}
+  onFocus={() => {
+    setIsEditingQuantity(true);
+    setTempQuantityValue(quantity.toString());
   }}
-  min="1"
-  max={product.quantity}
+  onChange={(e) => {
+    setTempQuantityValue(e.target.value);
+  }}
+  onBlur={(e) => {
+    let val = parseInt(e.target.value, 10);
+    if (isNaN(val) || val < 1) val = 1;
+    // Ensure value doesn't exceed available stock
+    const validatedQty = Math.min(val, product.quantity);
+    setQuantity(validatedQty);
+    setIsEditingQuantity(false);
+  }}
   className="w-16 mx-2 border rounded px-2 py-1 text-center"
 />
               <button
