@@ -1,18 +1,11 @@
 // pages/guest/payment/[orderId].js
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import { Elements } from '@stripe/stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
-import {
-  Elements,
-  CardElement,
-  useStripe,
-  useElements,
-  PaymentRequestButtonElement,
-} from '@stripe/react-stripe-js';
-import GuestLayout from '../../../components/layout/GuestLayout';
-import { supabase } from '../../../lib/supabase';
+import GuestLayout from '../../../components/layouts/GuestLayout';
+import { supabase } from '../../../utils/supabaseClient';
 
-// Initialize Stripe with your publishable key
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
 function CheckoutForm({ clientSecret, orderDetails }) {
@@ -185,12 +178,12 @@ function CheckoutForm({ clientSecret, orderDetails }) {
 }
 
 export default function PaymentPage() {
-  const [orderDetails, setOrderDetails] = useState(null);
-  const [clientSecret, setClientSecret] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const router = useRouter();
   const { orderId } = router.query;
+  const [clientSecret, setClientSecret] = useState('');
+  const [orderDetails, setOrderDetails] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!orderId || !router.isReady) return;
@@ -210,7 +203,13 @@ export default function PaymentPage() {
           throw new Error('Order not found');
         }
 
-        console.log('Fetched order details:', order); // Log per debug
+        console.log('Fetched order details:', order);
+        
+        // Verifica che total_price sia definito e sia un numero
+        if (typeof order.total_price !== 'number') {
+          throw new Error('Invalid order total price');
+        }
+
         setOrderDetails(order);
 
         // 2. Create payment intent
@@ -221,17 +220,17 @@ export default function PaymentPage() {
           },
           body: JSON.stringify({
             orderId: order.id,
-            amount: order.total_price, // Assicurati che questo campo esista
-            propertyId: order.apartment_id // Assicurati che questo campo esista
+            amount: order.total_price,
+            propertyId: order.apartment_id
           }),
         });
 
-        const data = await response.json();
-        
         if (!response.ok) {
-          throw new Error(data.error || data.details || 'Failed to create payment intent');
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to create payment intent');
         }
 
+        const data = await response.json();
         setClientSecret(data.clientSecret);
       } catch (err) {
         console.error('Error:', err);
@@ -244,14 +243,62 @@ export default function PaymentPage() {
     fetchOrderAndCreateIntent();
   }, [orderId, router.isReady]);
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
-  if (!clientSecret) return <div>Unable to initialize payment</div>;
+  const options = {
+    clientSecret,
+    appearance: {
+      theme: 'stripe',
+      variables: {
+        colorPrimary: '#0570de',
+      },
+    },
+  };
+
+  if (loading) {
+    return (
+      <GuestLayout>
+        <div className="max-w-4xl mx-auto p-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="text-center mt-4">Loading payment details...</p>
+        </div>
+      </GuestLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <GuestLayout>
+        <div className="max-w-4xl mx-auto p-4">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            <p>{error}</p>
+          </div>
+        </div>
+      </GuestLayout>
+    );
+  }
+
+  if (!clientSecret) {
+    return (
+      <GuestLayout>
+        <div className="max-w-4xl mx-auto p-4">
+          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+            <p>Unable to initialize payment. Please try again.</p>
+          </div>
+        </div>
+      </GuestLayout>
+    );
+  }
 
   return (
     <GuestLayout>
       <div className="max-w-4xl mx-auto p-4">
-        <Elements stripe={stripePromise} options={{ clientSecret }}>
+        {orderDetails && (
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold mb-2">Order Summary</h2>
+            <p className="text-gray-600">Order ID: {orderDetails.id}</p>
+            <p className="text-gray-600">Total Amount: €{orderDetails.total_price.toFixed(2)}</p>
+          </div>
+        )}
+        <Elements stripe={stripePromise} options={options}>
           <CheckoutForm clientSecret={clientSecret} orderDetails={orderDetails} />
         </Elements>
       </div>

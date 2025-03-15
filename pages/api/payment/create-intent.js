@@ -14,34 +14,36 @@ export default async function handler(req, res) {
   try {
     const { orderId, amount, propertyId } = req.body;
 
-    // Log dei dati ricevuti
     console.log('Creating payment intent with:', { orderId, amount, propertyId });
 
-    // Validazione più dettagliata
-    const missingFields = [];
-    if (!orderId) missingFields.push('orderId');
-    if (!amount) missingFields.push('amount');
-    if (!propertyId) missingFields.push('propertyId');
-
-    if (missingFields.length > 0) {
+    // Validazione più rigorosa
+    if (!orderId || typeof orderId !== 'string') {
       return res.status(400).json({ 
-        error: 'Missing required fields', 
-        missingFields,
-        receivedData: req.body 
+        error: 'Invalid orderId',
+        received: orderId
       });
     }
 
-    // Validazione dell'importo
-    if (amount < 0.50) {
+    if (!amount || typeof amount !== 'number' || amount <= 0) {
       return res.status(400).json({ 
-        error: 'Amount must be at least €0.50 EUR',
-        receivedAmount: amount
+        error: 'Invalid amount',
+        received: amount
       });
     }
+
+    if (!propertyId || typeof propertyId !== 'string') {
+      return res.status(400).json({ 
+        error: 'Invalid propertyId',
+        received: propertyId
+      });
+    }
+
+    // Converti l'importo in centesimi e assicurati che sia un intero
+    const amountInCents = Math.round(amount * 100);
 
     // Crea il payment intent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Converti in centesimi
+      amount: amountInCents,
       currency: 'eur',
       metadata: {
         orderId,
