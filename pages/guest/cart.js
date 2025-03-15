@@ -28,7 +28,7 @@ export default function Cart() {
         name: item.name
       }));
 
-      console.log('Sending cart to checkout:', cartItems); // Debug log
+      console.log('Sending cart to checkout:', { propertyId, cart: cartItems }); // Log migliorato
 
       const response = await fetch('/api/orders/checkout', {
         method: 'POST',
@@ -45,6 +45,13 @@ export default function Cart() {
       
       if (!response.ok) {
         throw new Error(data.error || data.details || 'Checkout failed');
+      }
+      
+      // Aggiungi log per verificare i dati ricevuti
+      console.log('Checkout response:', data);
+      
+      if (!data.orderId || !data.finalPrice) {
+        throw new Error('Invalid checkout response: missing orderId or finalPrice');
       }
       
       router.push(`/guest/payment/${data.orderId}?amount=${data.finalPrice}`);

@@ -14,14 +14,28 @@ export default async function handler(req, res) {
   try {
     const { orderId, amount, propertyId } = req.body;
 
-    if (!orderId || !amount || !propertyId) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    // Log dei dati ricevuti
+    console.log('Creating payment intent with:', { orderId, amount, propertyId });
+
+    // Validazione più dettagliata
+    const missingFields = [];
+    if (!orderId) missingFields.push('orderId');
+    if (!amount) missingFields.push('amount');
+    if (!propertyId) missingFields.push('propertyId');
+
+    if (missingFields.length > 0) {
+      return res.status(400).json({ 
+        error: 'Missing required fields', 
+        missingFields,
+        receivedData: req.body 
+      });
     }
 
-    // Add minimum amount validation
+    // Validazione dell'importo
     if (amount < 0.50) {
       return res.status(400).json({ 
-        error: 'Amount must be at least €0.50 EUR'
+        error: 'Amount must be at least €0.50 EUR',
+        receivedAmount: amount
       });
     }
 
@@ -43,7 +57,10 @@ export default async function handler(req, res) {
 
     if (updateError) {
       console.error('Error updating order:', updateError);
-      return res.status(500).json({ error: 'Failed to update order' });
+      return res.status(500).json({ 
+        error: 'Failed to update order',
+        details: updateError.message 
+      });
     }
 
     return res.status(200).json({

@@ -205,6 +205,12 @@ export default function PaymentPage() {
           .single();
 
         if (orderError) throw orderError;
+        
+        if (!order) {
+          throw new Error('Order not found');
+        }
+
+        console.log('Fetched order details:', order); // Log per debug
         setOrderDetails(order);
 
         // 2. Create payment intent
@@ -215,15 +221,15 @@ export default function PaymentPage() {
           },
           body: JSON.stringify({
             orderId: order.id,
-            amount: order.total_amount,
-            propertyId: order.property_id
+            amount: order.total_price, // Assicurati che questo campo esista
+            propertyId: order.apartment_id // Assicurati che questo campo esista
           }),
         });
 
         const data = await response.json();
         
         if (!response.ok) {
-          throw new Error(data.error || 'Failed to create payment intent');
+          throw new Error(data.error || data.details || 'Failed to create payment intent');
         }
 
         setClientSecret(data.clientSecret);
