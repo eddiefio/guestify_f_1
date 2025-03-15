@@ -21,6 +21,15 @@ export default function Cart() {
     setError(null);
     
     try {
+      const cartItems = cart.map(item => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        price: item.price,
+        name: item.name
+      }));
+
+      console.log('Sending cart to checkout:', cartItems); // Debug log
+
       const response = await fetch('/api/orders/checkout', {
         method: 'POST',
         headers: {
@@ -28,12 +37,7 @@ export default function Cart() {
         },
         body: JSON.stringify({
           propertyId,
-          cart: cart.map(item => ({
-            productId: item.id,
-            quantity: item.quantity,
-            price: item.price,
-            name: item.name
-          }))
+          cart: cartItems
         }),
       });
       
@@ -43,7 +47,6 @@ export default function Cart() {
         throw new Error(data.error || data.details || 'Checkout failed');
       }
       
-      // Redirect to payment page with order details
       router.push(`/guest/payment/${data.orderId}?amount=${data.finalPrice}`);
     } catch (err) {
       console.error('Checkout error:', err);

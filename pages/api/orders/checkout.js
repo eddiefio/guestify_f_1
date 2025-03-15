@@ -12,17 +12,46 @@ export default async function handler(req, res) {
   }
 
   const { cart, propertyId } = req.body;
-  
-  console.log('Received checkout request:', {
-    propertyId,
-    cartItems: cart
-  });
 
-  if (!propertyId || !cart || !Array.isArray(cart) || cart.length === 0) {
-    return res.status(400).json({ error: 'Invalid request data' });
-  }
+  console.log('Processing checkout:', { propertyId, cart }); // Debug log
 
   try {
+    // Verifica che tutti gli elementi del carrello abbiano un productId
+    if (!cart.every(item => item.productId)) {
+      return res.status(400).json({
+        error: 'Invalid cart data: missing productId',
+        cart: cart
+      });
+    }
+
+    // Verifica l'inventario per ogni prodotto
+    for (const item of cart) {
+      const { data: inventoryItem, error: inventoryError } = await supabaseAdmin
+        .from('inventory')
+        .select('quantity')
+        .eq('apartment_id', propertyId)
+        .eq('product_id', item.productId)
+        .single();
+
+      if (inventoryError || !inventoryItem) {
+        console.error('Inventory check failed:', { item, error: inventoryError });
+        return res.status(400).json({
+          error: 'Product not available',
+          productId: item.productId
+        });
+      }
+
+      if (inventoryItem.quantity < item.quantity) {
+        return res.status(400).json({
+          error: 'Insufficient inventory',
+          productId: item.productId,
+          requested: item.quantity,
+          available: inventoryItem.quantity
+        });
+      }
+    }
+
+    // Procedi con il resto della logica di checkout
     // Calculate subtotal and service fee
     let subtotal = 0;
     for (const item of cart) {

@@ -47,30 +47,33 @@ export function CartProvider({ children }) {
   }, [propertyId]);
 
   const addToCart = (item) => {
+    // Assicuriamoci che tutti i campi necessari siano presenti
+    const cartItem = {
+      productId: item.product_id || item.productId, // Supporta entrambi i formati
+      propertyId: item.apartment_id || item.propertyId,
+      name: item.name || item.products?.name,
+      price: parseFloat(item.price),
+      quantity: item.quantity,
+      maxQuantity: item.maxQuantity || item.quantity
+    };
+
     const existingIndex = cart.findIndex(
       (cartItem) => cartItem.productId === item.productId && cartItem.propertyId === item.propertyId
     );
-  
+
     if (existingIndex >= 0) {
       const updatedCart = [...cart];
-      // Calculate new quantity but ensure it doesn't exceed max available
-      const newQuantity = updatedCart[existingIndex].quantity + item.quantity;
-      const maxAvailable = item.maxQuantity || updatedCart[existingIndex].maxQuantity;
+      const newQuantity = updatedCart[existingIndex].quantity + cartItem.quantity;
+      const maxAvailable = cartItem.maxQuantity || updatedCart[existingIndex].maxQuantity;
       updatedCart[existingIndex].quantity = Math.min(newQuantity, maxAvailable);
-      // Always keep track of maxQuantity to use for validation
       updatedCart[existingIndex].maxQuantity = maxAvailable;
       setCart(updatedCart);
     } else {
-      // For new items, include the maxQuantity property
-      setCart([...cart, { 
-        ...item,
-        maxQuantity: item.maxQuantity || item.quantity 
-      }]);
+      setCart([...cart, cartItem]);
     }
-  
-    // If this is the first item, set the property ID
+
     if (!propertyId) {
-      setPropertyId(item.propertyId);
+      setPropertyId(cartItem.propertyId);
     }
   };
 
