@@ -85,7 +85,7 @@ const [tempQuantityValue, setTempQuantityValue] = useState('');
     
     addToCart({
       propertyId: product.apartment_id,
-      productId: product.product_id,
+      productId: product.product_id,  // Verifica che questo campo sia corretto
       name: product.products.name,
       price: parseFloat(product.price),
       quantity: quantity

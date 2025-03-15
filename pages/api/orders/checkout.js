@@ -11,7 +11,12 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { propertyId, cart } = req.body;
+  const { cart, propertyId } = req.body;
+  
+  console.log('Received checkout request:', {
+    propertyId,
+    cartItems: cart
+  });
 
   if (!propertyId || !cart || !Array.isArray(cart) || cart.length === 0) {
     return res.status(400).json({ error: 'Invalid request data' });
@@ -48,8 +53,20 @@ export default async function handler(req, res) {
 
     const orderId = newOrder.id;
 
+    // Prima di processare il carrello, verifica che i dati siano corretti
+    console.log('Cart items:', cart); // Aggiungi questo log per debug
+
     // Process each cart item
     for (const item of cart) {
+      // Verifica che product_id sia presente e valido
+      if (!item.productId) {
+        console.error('Invalid product ID for item:', item);
+        return res.status(400).json({ 
+          error: 'Invalid product ID',
+          item: item 
+        });
+      }
+
       // Verify inventory using admin client
       const { data: inventoryItem, error: inventoryFetchError } = await supabaseAdmin
         .from('inventory')
