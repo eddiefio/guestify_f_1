@@ -28,6 +28,14 @@ export default async function CreateIntent(req) {
     );
   }
 
+  // Add minimum amount validation
+  if (amount < 0.50) {
+    return new Response(
+      JSON.stringify({ error: 'Amount must be at least €0.50 EUR' }), 
+      { status: 400 }
+    );
+  }
+
   try {
     // Get property details
     const { data: property, error: propertyError } = await supabaseAdmin

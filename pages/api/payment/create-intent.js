@@ -18,6 +18,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // Add minimum amount validation
+    if (amount < 0.50) {
+      return res.status(400).json({ 
+        error: 'Amount must be at least €0.50 EUR'
+      });
+    }
+
     // Crea il payment intent
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Converti in centesimi
