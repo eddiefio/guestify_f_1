@@ -90,16 +90,30 @@ export default function Cart() {
                       <td className="px-2 py-2">{item.name}</td>
                       <td className="px-2 py-2">€{item.price.toFixed(2)}</td>
                       <td className="px-2 py-2">
-                        <input
-                          type="number"
-                          className="w-16 border rounded px-2 py-1 text-sm"
-                          value={item.quantity}
-                          min="1"
-                          onChange={(e) => {
-                            const newQty = parseInt(e.target.value, 10) || 1;
-                            updateCartItem(item.productId, item.propertyId, newQty);
-                          }}
-                        />
+                      <input
+  type="number"
+  className="w-16 border rounded px-2 py-1 text-sm"
+  value={item.quantity}
+  min="1"
+  max={item.maxQuantity} // Add max attribute based on available inventory
+  onChange={(e) => {
+    const newQty = parseInt(e.target.value, 10) || 1;
+    const validQty = Math.min(newQty, item.maxQuantity); // Enforce maximum
+    if (validQty !== newQty) {
+      // Provide feedback when quantity is reduced
+      setError(`Only ${item.maxQuantity} units of "${item.name}" available.`);
+      // Clear error message after 3 seconds
+      setTimeout(() => setError(null), 3000);
+    }
+    updateCartItem(item.productId, item.propertyId, validQty);
+  }}
+/>
+// Add an error message display at the top of the component:
+{error && (
+  <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
+    {error}
+  </div>
+)}
                       </td>
                       {/* Trash column */}
                       <td className="px-2 py-2 text-center w-10">

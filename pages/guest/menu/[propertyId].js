@@ -51,12 +51,19 @@ export default function GuestMenu() {
   }, [propertyId, setPropertyId]);
 
   const handleAddToCart = (item, quantity = 1) => {
+    // Ensure the quantity doesn't exceed available stock
+    const validatedQuantity = Math.min(
+      parseInt(quantity, 10),
+      item.quantity // Available inventory quantity
+    );
+    
     addToCart({
       propertyId: item.apartment_id,
       productId: item.product_id,
       name: item.products.name,
       price: parseFloat(item.price),
-      quantity: parseInt(quantity, 10),
+      quantity: validatedQuantity,
+      maxQuantity: item.quantity // Store max available with the cart item
     });
   };
 

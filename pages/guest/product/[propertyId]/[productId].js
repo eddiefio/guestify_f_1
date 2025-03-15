@@ -198,16 +198,20 @@ export default function ProductDetail() {
                 −
               </button>
               <input
-                type="number"
-                value={quantity}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  if (!isNaN(val)) setQuantity(val);
-                }}
-                min="1"
-                max={product.quantity}
-                className="w-16 mx-2 border rounded px-2 py-1 text-center"
-              />
+  type="number"
+  value={quantity}
+  onChange={(e) => {
+    const val = parseInt(e.target.value);
+    if (!isNaN(val)) {
+      // Ensure value doesn't exceed available stock
+      const validatedQty = Math.min(val, product.quantity);
+      setQuantity(validatedQty);
+    }
+  }}
+  min="1"
+  max={product.quantity}
+  className="w-16 mx-2 border rounded px-2 py-1 text-center"
+/>
               <button
                 onClick={() => handleQuantityChange(1)}
                 className="bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-xl font-bold"

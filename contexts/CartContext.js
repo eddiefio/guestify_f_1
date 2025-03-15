@@ -50,15 +50,24 @@ export function CartProvider({ children }) {
     const existingIndex = cart.findIndex(
       (cartItem) => cartItem.productId === item.productId && cartItem.propertyId === item.propertyId
     );
-
+  
     if (existingIndex >= 0) {
       const updatedCart = [...cart];
-      updatedCart[existingIndex].quantity += item.quantity;
+      // Calculate new quantity but ensure it doesn't exceed max available
+      const newQuantity = updatedCart[existingIndex].quantity + item.quantity;
+      const maxAvailable = item.maxQuantity || updatedCart[existingIndex].maxQuantity;
+      updatedCart[existingIndex].quantity = Math.min(newQuantity, maxAvailable);
+      // Always keep track of maxQuantity to use for validation
+      updatedCart[existingIndex].maxQuantity = maxAvailable;
       setCart(updatedCart);
     } else {
-      setCart([...cart, item]);
+      // For new items, include the maxQuantity property
+      setCart([...cart, { 
+        ...item,
+        maxQuantity: item.maxQuantity || item.quantity 
+      }]);
     }
-
+  
     // If this is the first item, set the property ID
     if (!propertyId) {
       setPropertyId(item.propertyId);
@@ -68,7 +77,9 @@ export function CartProvider({ children }) {
   const updateCartItem = (productId, propertyId, quantity) => {
     const updatedCart = cart.map((item) => {
       if (item.productId === productId && item.propertyId === propertyId) {
-        return { ...item, quantity };
+        // Ensure quantity doesn't exceed maximum available
+        const validatedQty = Math.min(quantity, item.maxQuantity);
+        return { ...item, quantity: validatedQty };
       }
       return item;
     });
