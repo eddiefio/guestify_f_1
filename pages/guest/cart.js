@@ -108,7 +108,6 @@ export default function Cart() {
     updateCartItem(item.productId, item.propertyId, validQty);
   }}
 />
-// Add an error message display at the top of the component:
 {error && (
   <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
     {error}
