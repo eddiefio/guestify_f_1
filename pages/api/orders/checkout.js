@@ -33,7 +33,7 @@ export default async function handler(req, res) {
         apartment_id: propertyId,
         total_price: finalPrice,
         order_date: new Date().toISOString(),
-        status: 'pending'
+        payment_status: 'pending'  // Corretto da 'status' a 'payment_status'
       }])
       .select()
       .single();
